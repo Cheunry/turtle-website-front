@@ -32,13 +32,23 @@ export function getBookContent(chapterId) {
     return request.get(`/front/book/content/${chapterId}`);
 }
 
-export function getPreChapterId(chapterId) {
-    return request.get(`/front/book/pre_chapter_id/${chapterId}`);
+// export function getPreChapterId(chapterId) {
+//     return request.get(`/front/book/pre_chapter_id/${chapterId}`);
+// }
+
+export function getPreChapterId(bookId, chapterNum) {
+    return request.get(`/front/book/pre_chapter_id/${bookId}/${chapterNum}`);
 }
 
-export function getNextChapterId(chapterId) {
-    return request.get(`/front/book/next_chapter_id/${chapterId}`);
+// export function getNextChapterId(chapterId) {
+//     return request.get(`/front/book/next_chapter_id/${chapterId}`);
+// }
+
+export function getNextChapterId(bookId, chapterNum) {
+    // 构造新的 URL 路径，将 bookId 和 chapterId 都放在路径中
+    return request.get(`/front/book/next_chapter_id/${bookId}/${chapterNum}`);
 }
+
 
 export function listVisitRankBooks() {
     return request.get('/front/book/visit_rank');

@@ -315,8 +315,27 @@ export default {
       router.push({ path: `/chapter_list/${bookId}` });
     };
 
+    // const preChapter = async (bookId) => {
+    //   const { data } = await getPreChapterId(route.params.chapterId);
+    //   if (data) {
+    //     router.push({ path: `/book/${bookId}/${data}` });
+    //     init(data);
+    //   } else {
+    //     ElMessage.warning("已经是第一章了！");
+    //   }
+    // };
+
     const preChapter = async (bookId) => {
-      const { data } = await getPreChapterId(route.params.chapterId);
+      // 从 state.data.chapterInfo 中获取 chapterNum
+      const chapterNum = state.data.chapterInfo?.chapterNum;
+
+      if (!chapterNum) {
+        ElMessage.warning("无法获取章节号！");
+        return;
+      }
+
+      const { data } = await getPreChapterId(bookId, chapterNum);
+
       if (data) {
         router.push({ path: `/book/${bookId}/${data}` });
         init(data);
@@ -325,8 +344,30 @@ export default {
       }
     };
 
+
+
+    // const nextChapter = async (bookId) => {
+    //   const { data } = await getNextChapterId(route.params.chapterId);
+    //   if (data) {
+    //     router.push({ path: `/book/${bookId}/${data}` });
+    //     init(data);
+    //   } else {
+    //     ElMessage.warning("已经是最后一章了！");
+    //   }
+    // };
+
+
     const nextChapter = async (bookId) => {
-      const { data } = await getNextChapterId(route.params.chapterId);
+      // 从 state.data.chapterInfo 中获取 chapterNum
+      const chapterNum = state.data.chapterInfo?.chapterNum;
+
+      if (!chapterNum) {
+        ElMessage.warning("无法获取章节号！");
+        return;
+      }
+
+      const { data } = await getNextChapterId(bookId, chapterNum);
+
       if (data) {
         router.push({ path: `/book/${bookId}/${data}` });
         init(data);
@@ -334,6 +375,10 @@ export default {
         ElMessage.warning("已经是最后一章了！");
       }
     };
+
+
+
+
 
     const init = async (chapterId) => {
       const { data } = await getBookContent(chapterId);
