@@ -98,7 +98,7 @@
                     </div>
                     <textarea
                       ref="editor"
-                      v-model="chapter.chapterContent"
+                      v-model="chapter.content"
                       name="bookContent"
                       rows="30"
                       cols="80"
@@ -197,7 +197,7 @@ export default {
 
     const state = reactive({
       bookId: route.query.id,
-      chapter: { chapterName: "", chapterContent: "", isVip: 0 },
+      chapter: { chapterName: "", content: "", isVip: 0 },
       hasSelection: false,
       generating: false,
       selectedText: "",
@@ -289,7 +289,7 @@ export default {
         let index = 0;
         const typing = setInterval(() => {
           if (index < text.length) {
-            state.chapter.chapterContent += text.charAt(index);
+            state.chapter.content += text.charAt(index);
             index++;
             // 自动滚动到底部
             editor.scrollTop = editor.scrollHeight;
@@ -338,12 +338,12 @@ export default {
         ElMessage.error("章节名不能为空！");
         return;
       }
-      if (!state.chapter.chapterContent) {
+      if (!state.chapter.content) {
         ElMessage.error("章节内容不能为空！");
         return;
       }
 
-      if (state.chapter.chapterContent.length < 50) {
+      if (state.chapter.content.length < 50) {
         ElMessage.error("章节内容太少！");
         return;
       }
