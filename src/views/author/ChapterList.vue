@@ -134,6 +134,7 @@ import { reactive, toRefs, onMounted, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { listChapters, deleteChapter } from "@/api/author";
 import AuthorHeader from "@/components/author/Header.vue";
+import { ElMessage } from "element-plus";
 export default {
   name: "authorChapterList",
   components: {
@@ -170,7 +171,11 @@ export default {
     };
 
     const deleteBookChapter = async (id) => {
-      await deleteChapter(id);
+      if (!state.bookId) {
+        ElMessage.error("无法获取小说ID，请刷新页面重试");
+        return;
+      }
+      await deleteChapter(state.bookId, id);
       load();
     };
 

@@ -37,14 +37,15 @@ export function aiGenerate(action,params) {
       });
 }
 
-export function deleteChapter(id) {
-    return request.delete(`/author/book/chapter/${id}`);
+export function deleteChapter(bookId, id) {
+    return request.post(`/author/book/chapter/delete/${id}`, { bookId });
 }
+
 
 export function getChapter(id) {
     return request.get(`/author/book/chapter/${id}`);
 }
 
 export function updateChapter(id,params) {
-    return request.put(`/author/book/chapter/${id}`,params);
+    return request.put(`/author/book/chapter_update/${id}`,params);
 }
