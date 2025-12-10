@@ -47,7 +47,7 @@
           <div class="btns" id="optBtn">
             <a
               href="javascript:void(0)"
-              @click="bookContent(book.id, book.firstChapterId)"
+              @click="bookContent(book.id, book.firstChapterNum)"
               class="btn_ora"
               >点击阅读</a
             >

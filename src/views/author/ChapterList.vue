@@ -1,12 +1,13 @@
 <template>
   <AuthorHeader />
   <div class="main box_center cf">
+    
     <div class="userBox cf">
       <div class="my_l">
         <ul class="log_list">
           <li>
             <router-link class="link_4 on" :to="{ name: 'authorBookList' }"
-              >小说管理</router-link
+              >小说章节管理</router-link
             >
           </li>
         </ul>
@@ -37,9 +38,10 @@
             <table cellpadding="0" cellspacing="0">
               <thead>
                 <tr>
-                  <!-- <th class="style">
-                                 序号
-                             </th>-->
+                  <!-- 取消注释并修改序号列标题 -->
+                   <th class="style">
+                       章节号
+                   </th>
                   <th class="name">章节名</th>
                   <th class="goread">更新时间</th>
                   <th class="goread">是否收费</th>
@@ -53,12 +55,17 @@
                   v-for="(item, index) in chapters"
                   :key="index"
                 >
+                  <!-- 新增：显示章节号 -->
+                  <td class="style">
+                    {{ item.chapterNum }}
+                  </td>
+                  
                   <td id="name1358314029098041344" class="name">
                     {{ item.chapterName }}
                   </td>
                   <td class="goread">{{ item.chapterUpdateTime }}<br />更新</td>
                   <td class="goread" valsc="291|2037554|1">
-                    {{ item.isVip == 1 ? "收费" : "免费" }}
+                    {{ item.isVip == '1' ? "收费" : "免费" }}
                   </td>
 
                   <td class="goread" id="opt1358314029098041344">
@@ -66,7 +73,7 @@
                       
                       :to="{
                         name: 'authorChapterUpdate',
-                        query: { id: item.id },
+                        query: { bookId: bookId, chapterNum: item.chapterNum },
                       }"
                       >修改</router-link
                     >
@@ -74,7 +81,7 @@
                     <br />
                     <a
                       href="javascript:void(0);"
-                      @click="deleteBookChapter(item.id)"
+                      @click="deleteBookChapter(item.chapterNum)"
                       >删除 </a
                     ><br />
                   </td>
@@ -153,16 +160,38 @@ export default {
       pageSize: 10,
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
     });
+
     onMounted(() => {
-      load();
+      // 只有当 bookId 存在时才加载
+      if (state.bookId) {
+        load();
+      } else {
+        ElMessage.error("未获取到书籍ID");
+      }
     });
 
     const load = async () => {
-      const { data } = await listChapters(state.bookId, state.searchCondition);
-      state.chapters = data.list;
-      state.searchCondition.pageNum = data.pageNum;
-      state.searchCondition.pageSize = data.pageSize;
-      state.total = Number(data.total);
+      try {
+        const res = await listChapters(state.bookId, state.searchCondition);
+        
+        // 针对你提供的 JSON 结构进行精准解析
+        // res 结构: { code: "00000", data: { total: "1", list: [...] }, ... }
+        if (res.code === "00000" && res.data) {
+            const pageData = res.data;
+            state.chapters = pageData.list || [];
+            
+            // 处理字符串类型的数字
+            state.total = Number(pageData.total);
+            state.searchCondition.pageNum = Number(pageData.pageNum);
+            state.searchCondition.pageSize = Number(pageData.pageSize);
+        } else {
+            state.total = 0;
+            state.chapters = [];
+        }
+      } catch (err) {
+        console.error(err);
+        state.total = 0;
+      }
     };
 
     const handleCurrentChange = (pageNum) => {
@@ -170,12 +199,9 @@ export default {
       load();
     };
 
-    const deleteBookChapter = async (id) => {
-      if (!state.bookId) {
-        ElMessage.error("无法获取小说ID，请刷新页面重试");
-        return;
-      }
-      await deleteChapter(state.bookId, id);
+    const deleteBookChapter = async (chapterNum) => {
+      if (!state.bookId) return;
+      await deleteChapter(state.bookId, chapterNum);
       load();
     };
 
@@ -780,5 +806,9 @@ a.redBtn:hover {
   border-radius: 6px;
   padding: 10px;
   line-height: 1.8;
+}
+.my_bookshelf {
+  /* 确保这个容器不会被其他全局样式隐藏 */
+  display: block; 
 }
 </style>

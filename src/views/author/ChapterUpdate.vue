@@ -22,6 +22,17 @@
                 <h3>小说章节内容填写</h3>
                 <ul class="log_list">
                   <li><span id="LabErr"></span></li>
+                  <!-- 新增：章节号修改 -->
+                  <b>章节号：</b>
+                  <li>
+                    <input
+                      v-model="chapter.chapterNum"
+                      type="number"
+                      class="s_input"
+                      placeholder="请输入章节号"
+                    />
+                  </li>
+                  
                   <b>章节名：</b>
                   <li>
                     <input
@@ -131,7 +142,8 @@ export default {
     const router = useRouter();
 
     const state = reactive({
-      chapterId: route.query.id,
+      bookId: route.query.bookId,
+      chapterNum: route.query.chapterNum,
       chapter: { chapterName: "", content: "", isVip: 0 },
     });
 
@@ -140,18 +152,27 @@ export default {
     });
 
     const load = async () => {
-      const { data } = await getChapter(state.chapterId);
+      // 这里的 API 调用现在需要两个参数
+      const { data } = await getChapter(state.bookId, state.chapterNum);
       state.chapter = data;
     };
 
     const updateBookChapter = async () => {
       console.log("sate=========", state.chapter);
-      if (!state.chapter.chapterName) {
-        ElMessage.error("章节名不能为空！");
+      
+      // 新增校验
+      if (!state.chapter.chapterNum) {
+        ElMessage.error("章节号不能为空！");
         return;
       }
-      if (!state.chapter.content) {
-        ElMessage.error("章节内容不能为空！");
+      
+      if (!/^[1-9]\d*$/.test(state.chapter.chapterNum)) {
+        ElMessage.error("章节号必须为正整数！");
+        return;
+      }
+
+      if (!state.chapter.chapterName) {
+        ElMessage.error("章节名不能为空！");
         return;
       }
 
@@ -160,8 +181,14 @@ export default {
         return;
       }
 
-      await updateChapter(state.chapterId, state.chapter);
+      // 注意参数顺序：bookId, oldChapterNum, params (包含 newChapterNum)
+      // state.chapterNum 是路由传进来的旧章节号
+      // state.chapter 是表单数据，包含可能被用户修改了的新章节号
+      await updateChapter(state.bookId, state.chapterNum, state.chapter);
+      
       ElMessage.success("更新成功！");
+      // 更新成功后跳转回章节列表，避免页面数据不一致
+      router.push({ name: 'authorChapterList', query: { id: state.bookId } });
     };
 
     return {

@@ -22,6 +22,15 @@
                 <h3>小说章节内容填写</h3>
                 <ul class="log_list">
                   <li><span id="LabErr"></span></li>
+                  <b>章节号：</b>
+                  <li>
+                    <input
+                      v-model="chapter.chapterNum"
+                      type="number"
+                      class="s_input"
+                      placeholder="请输入章节号"
+                    />
+                  </li>
                   <b>章节名：</b>
                   <li>
                     <input
@@ -197,7 +206,7 @@ export default {
 
     const state = reactive({
       bookId: route.query.id,
-      chapter: { chapterName: "", content: "", isVip: 0 },
+      chapter: { chapterNum: "", chapterName: "", content: "", isVip: 0 },
       hasSelection: false,
       generating: false,
       selectedText: "",
@@ -334,6 +343,16 @@ export default {
 
     const saveChapter = async () => {
       console.log("sate=========", state.chapter);
+      if (!state.chapter.chapterNum) {
+        ElMessage.error("章节号不能为空！");
+        return;
+      }
+      
+      if (!/^[1-9]\d*$/.test(state.chapter.chapterNum)) {
+        ElMessage.error("章节号必须为正整数！");
+        return;
+      }
+
       if (!state.chapter.chapterName) {
         ElMessage.error("章节名不能为空！");
         return;

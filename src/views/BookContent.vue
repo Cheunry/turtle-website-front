@@ -282,8 +282,10 @@ export default {
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
     });
     onMounted(() => {
-      init(route.params.chapterId);
-      console.log("route.params.chapterId:", route.params.chapterId);
+      // 从路由参数获取 bookId 和 chapterNum
+      const bookId = route.params.id; // 路由中的 :id 对应 bookId
+      const chapterNum = route.params.chapterNum; // 路由中的 :chapterNum 对应 chapterNum
+      init(bookId, chapterNum);
       keyDown();
     });
 
@@ -338,7 +340,7 @@ export default {
 
       if (data) {
         router.push({ path: `/book/${bookId}/${data}` });
-        init(data);
+        init(bookId, data);
       } else {
         ElMessage.warning("已经是第一章了！");
       }
@@ -370,7 +372,7 @@ export default {
 
       if (data) {
         router.push({ path: `/book/${bookId}/${data}` });
-        init(data);
+        init(bookId, data);
       } else {
         ElMessage.warning("已经是最后一章了！");
       }
@@ -380,8 +382,8 @@ export default {
 
 
 
-    const init = async (chapterId) => {
-      const { data } = await getBookContent(chapterId);
+    const init = async (bookId, chapterNum) => {
+      const { data } = await getBookContent(bookId, chapterNum);
       state.data = data;
     };
 

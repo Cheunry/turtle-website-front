@@ -32,7 +32,7 @@
           <div class="dirList">
             <ul v-for="(item,index) in chapterList" :key="index">
               <li>
-                <a @click="bookContent(book.id,item.id)" href="javascript:void(0)">
+                <a @click="bookContent(book.id, item.chapterNum)" href="javascript:void(0)">
                   <span>{{item.chapterName}}</span><i class="red"> [{{item.isVip == 1 ? '收费' : '免费'}}]</i>
                 </a>
               </li>
@@ -82,11 +82,15 @@ export default {
 
     const loadChapterList = async (bookId) => {
       const { data } = await listChapters({ bookId: bookId });
+      // 修复：后端直接返回数组，不再包裹在 list 属性中
+      // 如果为了兼容性，可以写成：state.chapterList = Array.isArray(data) ? data : (data.list || []);
       state.chapterList = data;
     };
 
-    const bookContent = (bookId, chapterId) => {
-      router.push({ path: `/book/${bookId}/${chapterId}` });
+    const bookContent = (bookId, chapterNum) => {
+      // 修改点2：如果您使用了联合主键加速检索，建议这里传递 chapterNum
+      // 同时也需要确保路由配置和 BookContent 页面支持接收 chapterNum
+      router.push({ path: `/book/${bookId}/${chapterNum}` });
     };
 
     const bookDetail = (bookId) => {

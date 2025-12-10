@@ -28,8 +28,8 @@ export function listChapters(params) {
     return request.get('/front/book/chapter/list', { params });
 }
 
-export function getBookContent(chapterId) {
-    return request.get(`/front/book/content/${chapterId}`);
+export function getBookContent(bookId, chapterNum) {
+    return request.get(`/front/book/content/${bookId}/${chapterNum}`);
 }
 
 // export function getPreChapterId(chapterId) {
