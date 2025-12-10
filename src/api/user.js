@@ -44,6 +44,10 @@ export function listBookshelf() {
     return request.get('/front/user/bookshelf');
 }
 
+export function deleteBookshelf(bookId) {
+    return request.delete(`/front/user/bookshelf?bookId=${bookId}`);
+}
+
 export function updateBookshelfProcess(bookId, chapterNum) {
     return request.put(`/front/user/bookshelf/process?bookId=${bookId}&chapterNum=${chapterNum}`);
 }

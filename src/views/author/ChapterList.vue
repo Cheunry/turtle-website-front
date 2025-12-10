@@ -7,7 +7,7 @@
         <ul class="log_list">
           <li>
             <router-link class="link_4 on" :to="{ name: 'authorBookList' }"
-              >小说章节管理</router-link
+              >返回小说管理列表</router-link
             >
           </li>
         </ul>

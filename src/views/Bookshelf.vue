@@ -19,13 +19,15 @@
               </h3>
               <p class="author">作者：{{ item.authorName }}</p>
               <p class="newest">
-                最新章节：<a href="javascript:void(0)" @click="bookContent(item.bookId, item.lastChapterNum)">{{ item.lastChapterName }}</a>
-                <span class="time">({{ item.lastChapterUpdateTime }})</span>
+                {{ item.preChapterNum > 0 ? `上次阅读到第 ${item.preChapterNum} 章` : '尚未开始阅读' }}
               </p>
               <p class="read_btn">
-                <a class="btn_red" href="javascript:void(0)" @click="bookContent(item.bookId, item.preChapterNum ? item.preChapterNum : item.firstChapterNum || 1)">
-                  {{ item.preChapterNum ? '继续阅读' : '开始阅读' }}
+                <!-- 逻辑简化：只要有阅读进度就用进度，否则直接用书的首章节号（如果是null则兜底为0） -->
+                <!-- 这里的 !== null 判断非常重要，因为 0 是有效的章节号 -->
+                <a class="btn_red" href="javascript:void(0)" @click="bookContent(item.bookId, item.preChapterNum > 0 ? item.preChapterNum : (item.firstChapterNum !== null ? item.firstChapterNum : 1))">
+                  {{ item.preChapterNum > 0 ? '继续阅读' : '开始阅读' }}
                 </a>
+                <a class="btn_gray" href="javascript:void(0)" @click="deleteBook(item.bookId)" style="margin-left: 10px;">移除</a>
               </p>
             </div>
           </li>
@@ -44,8 +46,9 @@ import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import { reactive, toRefs, onMounted } from "vue";
 import { useRouter } from "vue-router";
-import { listBookshelf } from "@/api/user";
+import { listBookshelf, deleteBookshelf } from "@/api/user";
 import { getImageUrl } from "@/utils";
+import { ElMessage, ElMessageBox } from "element-plus";
 import "@/assets/styles/book.css";
 
 export default {
@@ -69,6 +72,24 @@ export default {
       state.books = data;
     };
 
+    const deleteBook = (bookId) => {
+      ElMessageBox.confirm(
+        "确认将这本书移出书架吗？",
+        "提示",
+        {
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          type: "warning",
+        }
+      ).then(async () => {
+        await deleteBookshelf(bookId);
+        ElMessage.success("移除成功");
+        loadBookshelf();
+      }).catch(() => {
+        // 取消删除
+      });
+    };
+
     const bookDetail = (bookId) => {
       router.push({ path: `/book/${bookId}` });
     };
@@ -81,6 +102,7 @@ export default {
       ...toRefs(state),
       bookDetail,
       bookContent,
+      deleteBook,
       getImageUrl,
     };
   },
