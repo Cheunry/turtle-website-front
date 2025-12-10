@@ -76,7 +76,7 @@
                 <div class="fl">
                   <h3>最新章节</h3>
                   <span id="bookIndexCount"
-                    >({{ chapterAbout.chapterTotal }}章)</span
+                    >(第{{ chapterAbout.chapterTotal }}章)</span
                   >
                 </div>
                 <a
@@ -93,12 +93,12 @@
                       @click="
                         bookContent(
                           chapterAbout.chapterInfo.bookId,
-                          chapterAbout.chapterInfo.id
+                          chapterAbout.chapterInfo.chapterNum
                         )
                       "
                       href="javascript:void(0)"
                       v-if="chapterAbout.chapterInfo"
-                      >{{ chapterAbout.chapterInfo.chapterName }}】</a
+                      >章节名：{{ chapterAbout.chapterInfo.chapterName }}</a
                     ></span
                   >
                   <span class="black9 fr" v-if="chapterAbout.chapterInfo"
