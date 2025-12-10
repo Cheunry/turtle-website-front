@@ -35,3 +35,15 @@ export function updateUserInfo(userInfo) {
 export function listComments(params) {
     return request.get('/front/user/comments', { params });
 }
+
+export function addToBookshelf(bookId) {
+    return request.post(`/front/user/bookshelf?bookId=${bookId}`);
+}
+
+export function listBookshelf() {
+    return request.get('/front/user/bookshelf');
+}
+
+export function updateBookshelfProcess(bookId, chapterNum) {
+    return request.put(`/front/user/bookshelf/process?bookId=${bookId}&chapterNum=${chapterNum}`);
+}

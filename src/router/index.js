@@ -45,6 +45,11 @@ const router = createRouter({
       component: () => import('@/views/BookRank')
     },
     {
+      path: '/bookshelf',
+      name: 'bookshelf',
+      component: () => import('@/views/Bookshelf')
+    },
+    {
       path: '/book/:id',
       name: 'book',
       component: () => import('@/views/Book')

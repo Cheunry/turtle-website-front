@@ -51,15 +51,14 @@
               class="btn_ora"
               >点击阅读</a
             >
-            <!--
             <span id="cFavs"
               ><a
                 href="javascript:void(0);"
                 class="btn_ora_white btn_addsj"
-                onclick="javascript:BookDetail.AddFavorites(37,0,0);"
+                @click="addBookToShelf"
                 >加入书架</a
               >
-            </span>-->
+            </span>
           </div>
         </div>
       </div>
@@ -98,7 +97,7 @@
                       "
                       href="javascript:void(0)"
                       v-if="chapterAbout.chapterInfo"
-                      >章节名：{{ chapterAbout.chapterInfo.chapterName }}</a
+                      >{{ chapterAbout.chapterInfo.chapterName }}</a
                     ></span
                   >
                   <span class="black9 fr" v-if="chapterAbout.chapterInfo"
@@ -340,7 +339,7 @@ import {
   listRecBooks,
   listNewestComments,
 } from "@/api/book";
-import { comment, deleteComment, updateComment } from "@/api/user";
+import { comment, deleteComment, updateComment, addToBookshelf } from "@/api/user";
 import { getUid } from "@/utils/auth";
 import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
@@ -451,6 +450,18 @@ export default {
       loadNewestComments(state.book.id);
     };
 
+    const addBookToShelf = async () => {
+      if (!state.uid) {
+        router.push({ name: "login" });
+        return;
+      }
+      if (!state.book.id) {
+         return;
+      }
+      await addToBookshelf(state.book.id);
+      ElMessage.success("加入书架成功！");
+    };
+
     const updateUserComment = async (id, comment) => {
       state.dialogUpdateCommentFormVisible = true;
       state.updateComment = comment;
@@ -479,6 +490,7 @@ export default {
       userComment,
       deleteUserComment,
       man,
+      addBookToShelf,
       updateUserComment,
       goUpdateComment,
       getImageUrl,

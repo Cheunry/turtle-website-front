@@ -7,6 +7,7 @@
           <router-link :to="{ name: 'bookclass' }"> 全部作品 </router-link>
         </li>
         <li><router-link :to="{ name: 'bookRank' }">排行榜</router-link></li>
+        <li><router-link :to="{ name: 'bookshelf' }">我的书架</router-link></li>
         <!--<li class=""><a href="/pay/index.html">充值</a></li>-->
         <li><a @click="goAuthor" href="javascript:void(0)">作家专区</a></li>
       </ul>

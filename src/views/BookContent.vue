@@ -265,6 +265,8 @@ import "@/assets/styles/read.css";
 import { reactive, toRefs, onMounted, onBeforeUnmount, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { getBookContent, getPreChapterId, getNextChapterId } from "@/api/book";
+import { updateBookshelfProcess } from "@/api/user";
+import { getUid } from "@/utils/auth";
 import { ElMessage } from "element-plus";
 import Top from "@/components/common/Top";
 import Footer from "@/components/common/Footer";
@@ -385,6 +387,10 @@ export default {
     const init = async (bookId, chapterNum) => {
       const { data } = await getBookContent(bookId, chapterNum);
       state.data = data;
+      // 如果已登录，更新阅读进度
+      if (getUid()) {
+        updateBookshelfProcess(bookId, chapterNum);
+      }
     };
 
     // 监听键盘
