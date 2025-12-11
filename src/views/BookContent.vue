@@ -297,6 +297,9 @@ export default {
         let e1 =
           e || event || window.event || arguments.callee.caller.arguments[0];
         //键盘按键判断:左箭头-37;上箭头-38；右箭头-39;下箭头-40
+        // 增加空值判断
+        if (!state.data || !state.data.chapterInfo) return;
+        
         const bookId = state.data.chapterInfo.bookId;
         //左
         if (e1 && e1.keyCode == 37) {
@@ -378,6 +381,9 @@ export default {
         let e1 =
           e || event || window.event || arguments.callee.caller.arguments[0];
         //键盘按键判断:左箭头-37;上箭头-38；右箭头-39;下箭头-40
+        // 增加空值判断
+        if (!state.data || !state.data.chapterInfo) return;
+        
         const bookId = state.data.chapterInfo.bookId;
         //左
         if (e1 && e1.keyCode == 37) {
