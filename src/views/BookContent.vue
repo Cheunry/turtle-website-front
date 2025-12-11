@@ -265,8 +265,6 @@ import "@/assets/styles/read.css";
 import { reactive, toRefs, onMounted, onBeforeUnmount, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { getBookContent, getPreChapterId, getNextChapterId } from "@/api/book";
-import { updateBookshelfProcess } from "@/api/user";
-import { getUid } from "@/utils/auth";
 import { ElMessage } from "element-plus";
 import Top from "@/components/common/Top";
 import Footer from "@/components/common/Footer";
@@ -319,15 +317,6 @@ export default {
       router.push({ path: `/chapter_list/${bookId}` });
     };
 
-    // const preChapter = async (bookId) => {
-    //   const { data } = await getPreChapterId(route.params.chapterId);
-    //   if (data) {
-    //     router.push({ path: `/book/${bookId}/${data}` });
-    //     init(data);
-    //   } else {
-    //     ElMessage.warning("已经是第一章了！");
-    //   }
-    // };
 
     const preChapter = async (bookId) => {
       // 从 state.data.chapterInfo 中获取 chapterNum
@@ -348,17 +337,6 @@ export default {
       }
     };
 
-
-
-    // const nextChapter = async (bookId) => {
-    //   const { data } = await getNextChapterId(route.params.chapterId);
-    //   if (data) {
-    //     router.push({ path: `/book/${bookId}/${data}` });
-    //     init(data);
-    //   } else {
-    //     ElMessage.warning("已经是最后一章了！");
-    //   }
-    // };
 
 
     const nextChapter = async (bookId) => {
