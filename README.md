@@ -15,5 +15,20 @@ git commit -m "消息备注"
 git push
 
 
+关于yarn
+手动添加了环境变量：
+    export PATH=$PATH:/Users/cheunry/Environment/Node_js/v16/bin
+输入命令验证是否成功：
+输入：
+    node -v
+    npm -v
+    yarn -v
+输出：
+    v16.20.2
+    8.19.4
+    1.22.22
 
+安装网页端图片裁剪工具
+：cd /Users/cheunry/Project/Java/turtle-website/turtle-website-front
+yarn add vue-cropper@next
 

@@ -57,20 +57,23 @@
                   </li>
                   <b>小说封面：</b>
                   <li style="position: relative">
-                    <el-upload
-                      class="avatar-uploader"
-                      :action="baseUrl + '/front/resource/image'"
-                      :show-file-list="false"
-                      :on-success="handleAvatarSuccess"
-                      :before-upload="beforeAvatarUpload"
+                    <!-- 使用裁剪组件，设置比例为 3:4 -->
+                    <ImageCropper 
+                      :fixedNumber="[3, 4]" 
+                      :limitSize="10"
+                      title="上传封面" 
+                      @uploaded="handleAvatarSuccess"
                     >
-                      <img
-                        :src="
-                          book.picUrl ? getImageUrl(book.picUrl, imgBaseUrl) : picUpload
-                        "
-                        class="avatar"
-                      />
-                    </el-upload>
+                      <template #trigger>
+                        <div class="avatar-uploader">
+                          <img
+                            :src="book.picUrl ? getImageUrl(book.picUrl, imgBaseUrl) : picUpload"
+                            class="avatar"
+                            style="width: 120px; height: 160px; object-fit: cover;" 
+                          />
+                        </div>
+                      </template>
+                    </ImageCropper>
                   </li>
                   <b>小说介绍：</b>
 
@@ -146,10 +149,13 @@ import { listCategorys } from "@/api/book";
 import { getImageUrl } from "@/utils/index";
 import AuthorHeader from "@/components/author/Header.vue";
 import picUpload from "@/assets/images/pic_upload.png";
+import ImageCropper from "@/components/common/ImageCropper"; // 引入组件
+
 export default {
   name: "authorBookAdd",
   components: {
     AuthorHeader,
+    ImageCropper // 注册
   },
   setup() {
     const route = useRoute();
@@ -166,19 +172,11 @@ export default {
       loadCategoryList()
     })
 
-    const beforeAvatarUpload = (rawFile) => {
-      if (rawFile.type !== "image/jpeg") {
-        ElMessage.error("必须上传 JPG 格式的图片!");
-        return false;
-      } else if (rawFile.size / 1024 / 1024 > 5) {
-        ElMessage.error("图片大小最多 5MB!");
-        return false;
-      }
-      return true;
-    };
+    // 移除 beforeAvatarUpload
 
-    const handleAvatarSuccess = (response, uploadFile) => {
-      state.book.picUrl = response.data;
+    // 修改 onSuccess
+    const handleAvatarSuccess = (url) => {
+      state.book.picUrl = url;
     };
 
     const loadCategoryList = async () => {
@@ -219,7 +217,6 @@ export default {
     return {
       ...toRefs(state),
       picUpload,
-      beforeAvatarUpload,
       handleAvatarSuccess,
       loadCategoryList,
       categoryChange,

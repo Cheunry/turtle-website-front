@@ -10,59 +10,60 @@
             <ul class="mytab_list">
               <li>
                 <i class="tit">我的头像</i>
-                <el-upload
-                  class="avatar-uploader"
-                  :action="baseUrl + '/front/resource/image'"
-                  :show-file-list="false"
-                  :on-success="handleAvatarSuccess"
-                  :before-upload="beforeAvatarUpload"
+                <!-- 替换原有的 el-upload -->
+                <ImageCropper 
+                  :fixedNumber="[1, 1]" 
+                  :limitSize="5"
+                  title="修改头像" 
+                  @uploaded="handleAvatarSuccess"
                 >
-                  <img
-                    :src="userPhoto ? getImageUrl(userPhoto, imgBaseUrl) : man"
-                    class="avatar"
-                  />
-                </el-upload>
-                <!--
-                <a style="position: relative">
-                  <img
-                    id="imgLogo"
-                    class="user_img"
-                    alt="我的头像"
-                    :src="userPhoto ? getImageUrl(userPhoto, imgBaseUrl) : man"
-                  />
-                  <input
-                    class="opacity"
-                    onchange="picChange()"
-                    type="file"
-                    id="file0"
-                    name="file"
-                    title="点击上传图片"
-                    style="
-                      z-index: 100;
-                      cursor: pointer;
-                      left: 0px;
-                      top: -25px;
-                      width: 60px;
-                      height: 80px;
-                      opacity: 0;
-                      position: absolute;
-                    "
-                  />
-                </a>-->
+                  <template #trigger>
+                    <div class="avatar-uploader">
+                      <img
+                        :src="userPhoto ? getImageUrl(userPhoto, imgBaseUrl) : man"
+                        class="avatar"
+                      />
+                      <div class="el-upload__text" style="text-align:center; margin-top:5px; color:#999; font-size:12px;">
+                        点击图片修改
+                      </div>
+                    </div>
+                  </template>
+                </ImageCropper>
+              </li>
+              <!-- 移除用户名称编辑栏 -->
+              <li>
+                <i class="tit">手机号码</i>{{ username }}
               </li>
               <li>
-                <i class="tit">我的昵称</i
-                ><a id="my_name"
-                  >{{ nickName
-                  }}<!--<em class="ml10">[修改]</em>--></a
-                >
+                <i class="tit">账户余额</i>{{ accountBalance }} 龟币
+              </li>
+              <li>
+                <i class="tit">我的昵称</i>
+                <a id="my_name" v-if="!nickNameEdit" @click="nickNameEdit = true" style="cursor: pointer;">
+                  {{ nickName }}<em class="ml10">[修改]</em>
+                </a>
+                <el-input 
+                  v-else 
+                  v-model="nickName" 
+                  ref="nickNameRef"
+                  @blur="saveNickName" 
+                  @keyup.enter="saveNickName"
+                  placeholder="请输入昵称"
+                  style="width: 200px" 
+                />
               </li>
               <li style="display: none">
                 <i class="tit">电子邮箱</i><a href="javascript:void(0);"></a>
               </li>
               <li>
-                <i class="tit">我的性别</i
-                ><a id="my_sex">男<!--<em class="ml10">[修改]</em>--></a>
+                <i class="tit">我的性别</i>
+                <a id="my_sex" v-if="!userSexEdit" @click="userSexEdit = true" style="cursor: pointer;">
+                  {{ userSex === 1 ? '女' : '男' }}<em class="ml10">[修改]</em>
+                </a>
+                <el-radio-group v-else v-model="userSex" @change="saveUserSex">
+                  <el-radio :label="0">男</el-radio>
+                  <el-radio :label="1">女</el-radio>
+                </el-radio-group>
               </li>
             </ul>
           </div>
@@ -87,12 +88,16 @@ import { getImageUrl } from "@/utils/index";
 import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import UserMenu from "@/components/user/Menu";
+// 引入新组件
+import ImageCropper from "@/components/common/ImageCropper";
+
 export default {
   name: "userSetup",
   components: {
     Header,
     Footer,
-    UserMenu
+    UserMenu,
+    ImageCropper // 注册组件
   },
   setup() {
     const route = useRoute();
@@ -101,6 +106,11 @@ export default {
     const state = reactive({
       userPhoto: "",
       nickName: "",
+      username: "",
+      accountBalance: 0,
+      userSex: 0,
+      nickNameEdit: false,
+      userSexEdit: false,
       baseUrl: process.env.VUE_APP_BASE_API_URL,
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
     });
@@ -109,30 +119,60 @@ export default {
       const { data } = await getUserinfo();
       state.userPhoto = data.userPhoto;
       state.nickName = data.nickName;
+      state.username = data.username;
+      state.accountBalance = data.accountBalance || 0;
+      if (data.userSex !== undefined && data.userSex !== null) {
+        state.userSex = data.userSex;
+      }
     });
 
-    const beforeAvatarUpload = (rawFile) => {
-      if (rawFile.type !== "image/jpeg") {
-        ElMessage.error("必须上传 JPG 格式的图片!");
-        return false;
-      } else if (rawFile.size / 1024 / 1024 > 5) {
-        ElMessage.error("图片大小最多 5MB!");
-        return false;
-      }
-      return true;
+    // 移除原来的 beforeAvatarUpload (裁剪组件内部已校验)
+
+    // 修改 onSuccess 回调以适配组件传出的 url
+    const handleAvatarSuccess = (url) => {
+      state.userPhoto = url;
+      updateUserInfo({ userPhoto: state.userPhoto });
     };
 
-    const handleAvatarSuccess = (response, uploadFile) => {
-      state.userPhoto = response.data;
-      updateUserInfo({ userPhoto: state.userPhoto });
+    const saveNickName = async () => {
+      if (!state.nickNameEdit) return;
+      if (!state.nickName) {
+        ElMessage.error("昵称不能为空");
+        return;
+      }
+      try {
+        await updateUserInfo({ nickName: state.nickName });
+        state.nickNameEdit = false;
+        ElMessage.success("昵称修改成功");
+      } catch (error) {
+        ElMessage.error("修改失败");
+      }
+    };
+
+    const saveUserSex = async (val) => {
+      // 强制转换为数字，防止 element-plus 返回字符串导致显示逻辑判断错误
+      const sexVal = Number(val);
+      try {
+        await updateUserInfo({ userSex: sexVal });
+        state.userSexEdit = false;
+        // 显式更新状态为数字
+        state.userSex = sexVal;
+        ElMessage.success("性别修改成功");
+      } catch (error) {
+        ElMessage.error("修改失败");
+        // 失败回滚
+        const { data } = await getUserinfo();
+        state.userSex = data.userSex;
+      }
     };
 
     return {
       ...toRefs(state),
       man,
-      beforeAvatarUpload,
       handleAvatarSuccess,
       getImageUrl,
+      saveNickName,
+      saveUserSex
     };
   },
 };
