@@ -10,7 +10,7 @@
           <li v-for="(item, index) in books" :key="index" class="cf">
             <div class="book_img fl">
               <a href="javascript:void(0)" @click="bookDetail(item.bookId)">
-                <img :src="getImageUrl(item.picUrl)" :alt="item.bookName" />
+                <img :src="getImageUrl(item.picUrl, imgBaseUrl)" :alt="item.bookName" onerror="this.src='default.gif';this.onerror=null" />
               </a>
             </div>
             <div class="book_info fl">
@@ -61,6 +61,7 @@ export default {
     const router = useRouter();
     const state = reactive({
       books: [],
+      imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
     });
 
     onMounted(() => {
