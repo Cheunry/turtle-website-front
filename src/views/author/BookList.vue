@@ -1,6 +1,6 @@
 <template>
   <AuthorHeader />
-  <div class="main box_center cf">
+  <div class="main box_center_author cf">
     <div class="userBox cf">
       <div class="my_l">
         <ul class="log_list">
@@ -36,7 +36,7 @@
                   <th class="goread">昨日订阅数</th>
                   <th class="goread">更新时间</th>
                   <th class="goread">总字数</th>
-                  <th class="goread">操作</th>
+                  <th class="op_col">操作</th>
                 </tr>
               </thead>
               <tbody id="bookList">
@@ -47,24 +47,37 @@
                   :key="index"
                 >
                   <td style="position: relative" class="goread">
-                    <img
-                      width="50"
-                      height="70"
-                      :src="getImageUrl(item.picUrl, imgBaseUrl)"
-                      :alt="item.bookName"
-                    /><br />
-                    {{ item.bookName }}
+                    <div class="book_name_container">
+                      <img
+                        width="50"
+                        height="70"
+                        :src="getImageUrl(item.picUrl, imgBaseUrl)"
+                        :alt="item.bookName"
+                        class="book_cover"
+                      />
+                      <span class="book_title">{{ item.bookName }}</span>
+                    </div>
                   </td>
                   <td class="goread">{{ item.categoryName }}</td>
                   <td class="goread" valsc="291|2037554|1">
                     {{ item.visitCount }}
                   </td>
                   <td class="goread" valsc="291|2037554|1">0</td>
-                  <td class="goread">{{ item.updateTime }} 更新</td>
+                  <td class="goread">
+                    <div style="line-height: 1.4;">{{ formatDate(item.updateTime) }}</div>
+                    <div style="line-height: 1.4;">{{ formatTime(item.updateTime) }}</div>
+                  </td>
                   <td class="goread" valsc="291|2037554|1">{{ wordCountFormat(item.wordCount) }}</td>
-                  <td class="goread" id="opt1431636515973345292">
-                    <router-link class="redBtn" :to="{'name':'authorChapterList','query':{'id':item.id}}">章节管理</router-link>
-                    
+                  <td class="op_col">
+                    <div class="btn_group">
+                      <div class="btn_row">
+                        <router-link class="op_btn" :to="{'name':'authorBookEdit', 'params': {'id': item.id}}">修改</router-link>
+                        <a class="op_btn" href="javascript:void(0)" @click="deleteBookBtn(item.id)">删除</a>
+                      </div>
+                      <div class="btn_row">
+                        <router-link class="op_btn full_btn" :to="{'name':'authorChapterList','query':{'id':item.id}}">章节管理</router-link>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -120,8 +133,9 @@
 import "@/assets/styles/book.css";
 import { reactive, toRefs, onMounted, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { listBooks } from "@/api/author";
+import { listBooks, deleteBook } from "@/api/author";
 import { getImageUrl } from "@/utils/index";
+import { ElMessage, ElMessageBox } from "element-plus";
 import AuthorHeader from "@/components/author/Header.vue";
 export default {
   name: "authorBookList",
@@ -157,11 +171,42 @@ export default {
       load();
     };
 
+    const deleteBookBtn = (bookId) => {
+      ElMessageBox.confirm(
+        "书籍删除后无法恢复，确认删除？",
+        "提示",
+        {
+          confirmButtonText: "确定",
+          cancelButtonText: "取消",
+          type: "warning",
+        }
+      ).then(async () => {
+        await deleteBook(bookId);
+        ElMessage.success("删除成功");
+        load();
+      }).catch(() => {});
+    };
+
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '';
+      const parts = dateStr.split(' ');
+      return parts.length > 0 ? parts[0] : dateStr;
+    };
+
+    const formatTime = (dateStr) => {
+      if (!dateStr) return '';
+      const parts = dateStr.split(' ');
+      return parts.length > 1 ? parts[1] : '';
+    };
+
     return {
       ...toRefs(state),
       handleCurrentChange,
       load,
+      deleteBookBtn,
       getImageUrl,
+      formatDate,
+      formatTime
     };
   },
   computed: {
@@ -169,9 +214,6 @@ export default {
       return (wordCount) => {
         if (wordCount.length >= 5) {
           return parseInt(wordCount / 10000) + "万";
-        }
-        if (wordCount.length >= 4) {
-          return parseInt(wordCount / 1000) + "千";
         }
         return wordCount;
       };
@@ -193,15 +235,59 @@ export default {
 </style>
 
 <style scoped>
-.redBtn {
-  padding: 5px;
-  border-radius: 20px;
+.box_center_author {
+  width: 1200px;
+  margin: 0 auto;
+}
+
+.op_col {
+  width: 140px;
+  text-align: center;
+}
+
+
+
+.btn_group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 5px 0;
+  align-items: center;
+}
+
+
+.btn_row {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+}
+
+.op_btn {
+  display: inline-block;
+  padding: 6px 0;
+  font-size: 13px;
+  border-radius: 4px;
   border: 1px solid #f80;
-  background: #f80;
+  background-color: #fff;
+  color: #f80;
+  text-decoration: none;
+  line-height: 1.2;
+  transition: all 0.3s;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.op_btn:hover {
+  background-color: #f80;
   color: #fff;
 }
-a.redBtn:hover {
-  color: #fff;
+
+.small_btn {
+  width: 50px;
+}
+
+.big_btn {
+  width: 106px;
 }
 
 .avatar-uploader .avatar {
@@ -243,7 +329,6 @@ a.redBtn:hover {
   color: #f65167;
 }
 .userBox {
-  /*width: 998px; border: 1px solid #eaeaea;*/
   margin: 0 auto 50px;
   background: #fff;
   border-radius: 6px;
@@ -451,7 +536,7 @@ a.redBtn:hover {
   background-position: 32px -481px;
 }
 .my_r {
-  width: 739px;
+  width: 940px;
   padding: 0 30px 30px;
   float: right;
   border-left: 1px solid #efefef;
@@ -522,7 +607,7 @@ a.redBtn:hover {
   font-weight: normal;
 }
 .updateTable {
-  width: 739px;
+  width: 939px;
   color: #999;
 }
 .updateTable table {
@@ -536,7 +621,8 @@ a.redBtn:hover {
   vertical-align: middle;
   padding-left: 6px;
   font-weight: normal;
-  text-align: left;
+  text-align: middle;
+  font-size: 14px;
 }
 .updateTable th {
   background: #f9f9f9;
@@ -771,5 +857,24 @@ a.redBtn:hover {
   border-radius: 6px;
   padding: 10px;
   line-height: 1.8;
+}
+
+.book_name_container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+}
+.book_cover {
+  margin-bottom: 5px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.book_title {
+  display: block;
+  width: 100%;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

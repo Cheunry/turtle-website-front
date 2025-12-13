@@ -63,7 +63,8 @@
                   <td id="name1358314029098041344" class="name">
                     {{ item.chapterName }}
                   </td>
-                  <td class="goread">{{ item.chapterUpdateTime }}<br />更新</td>
+                  <td class="goread">{{ item.chapterUpdateTime }}</td>
+
                   <td class="goread" valsc="291|2037554|1">
                     {{ item.isVip == '1' ? "收费" : "免费" }}
                   </td>
