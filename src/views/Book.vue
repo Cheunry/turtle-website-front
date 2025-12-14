@@ -127,6 +127,15 @@
                   <span id="bookCommentTotal"
                     >({{ newestComments.commentTotal }}条)</span
                   >
+                  <span class="ml20" style="font-size: 14px; cursor: pointer">
+                    <el-checkbox
+                      v-model="onlyMine"
+                      @change="handleOnlyMineChange"
+                      :disabled="!uid"
+                    >
+                      只看我的
+                    </el-checkbox>
+                  </span>
                 </div>
               </div>
               <div class="reply_bar" id="reply_bar">
@@ -198,7 +207,10 @@
                     <li class="name">{{ item.commentUser }}</li>
                     <li class="dec" v-html="item.commentContent"></li>
                     <li class="other cf">
-                      <span class="time fl">{{ item.commentTime }}</span
+                      <span class="time fl">
+                        发表于：{{ item.commentCreateTime }}，更新于：{{
+                          item.commentUpdateTime
+                        }}</span
                       ><span class="fr" v-if="item.commentUserId == uid"
                         ><a
                           href="javascript:void(0);"
@@ -372,6 +384,7 @@ export default {
       },
       pageNum: 1,
       pageSize: 10,
+      onlyMine: false,
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
       dialogUpdateCommentFormVisible: false,
       commentId: "",
@@ -437,12 +450,23 @@ export default {
       const { data } = await listCommentByPage({ 
           bookId: bookId, 
           pageNum: state.pageNum, 
-          pageSize: state.pageSize 
+          pageSize: state.pageSize,
+          userId: state.onlyMine ? state.uid : null
       });
       state.newestComments = {
           commentTotal: data.total,
           comments: data.list
       };
+    };
+
+    const handleOnlyMineChange = () => {
+        if (!state.uid) {
+            ElMessage.warning("请先登录！");
+            state.onlyMine = false;
+            return;
+        }
+        state.pageNum = 1;
+        loadComments(state.book.id);
     };
 
     const handleCurrentChange = (pageNum) => {
@@ -517,6 +541,7 @@ export default {
       goUpdateComment,
       getImageUrl,
       handleCurrentChange,
+      handleOnlyMineChange,
     };
   },
   mounted() {
