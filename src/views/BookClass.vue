@@ -262,11 +262,22 @@ export default {
       updateTimeOn: null,
       sortOn:null
     });
-    onMounted(() => {
+    onMounted(async () => {  // 改为 async
       const key = route.query.key;
-      state.searchCondition.keyword = key;
-      state.searchCondition.pageSize = 10;
-      loadCategoryList(0);
+      // 初始化 searchCondition，确保所有必要字段都有默认值
+      state.searchCondition = {
+        keyword: key,
+        pageSize: 10,
+        pageNum: 1,
+        workDirection: 0,  // 设置默认值
+        categoryId: null,
+        bookStatus: null,
+        wordCountMin: null,
+        wordCountMax: null,
+        updateTimeMin: null,
+        sort: null
+      };
+      await loadCategoryList(0);  // 添加 await，确保数据加载完成
     });
 
     const search = async () => {
