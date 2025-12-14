@@ -165,9 +165,11 @@
                   <span class="fr"
                     ><a
                       class="btn_ora"
+                      :class="{ 'disabled': isSubmitting }"
+                      :style="{ cursor: isSubmitting ? 'not-allowed' : 'pointer', opacity: isSubmitting ? 0.6 : 1 }"
                       href="javascript:void(0);"
                       @click="userComment"
-                      >发表</a
+                      >{{ isSubmitting ? '提交中...' : '发表' }}</a
                     ></span
                   >
                 </div>
@@ -385,6 +387,7 @@ export default {
       pageNum: 1,
       pageSize: 10,
       onlyMine: false,
+      isSubmitting: false, // 新增：提交状态
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
       dialogUpdateCommentFormVisible: false,
       commentId: "",
@@ -475,6 +478,11 @@ export default {
     };
 
     const userComment = async () => {
+      // 如果正在提交，直接返回
+      if (state.isSubmitting) {
+        return;
+      }
+
       if (!state.commentContent) {
         ElMessage.error("用户评论不能为空！");
         return;
@@ -487,13 +495,28 @@ export default {
         ElMessage.error("评论不能多于 512 个字符！");
         return;
       }
-      await comment({
-        bookId: state.book.id,
-        commentContent: state.commentContent,
-      });
-      state.commentContent = "";
-      state.pageNum = 1;
-      loadComments(state.book.id);
+
+      // 设置提交状态，禁用按钮
+      state.isSubmitting = true;
+      
+      try {
+        await comment({
+          bookId: state.book.id,
+          commentContent: state.commentContent,
+        });
+        ElMessage.success("评论发表成功！");
+        state.commentContent = "";
+        state.pageNum = 1;
+        loadComments(state.book.id);
+      } catch (error) {
+        // 错误处理已在 request 拦截器中处理，这里只做状态恢复
+        console.error("发表评论失败:", error);
+      } finally {
+        // 1.5 秒后恢复按钮状态（给用户流畅的反馈，不会感觉卡顿）
+        setTimeout(() => {
+          state.isSubmitting = false;
+        }, 1500);
+      }
     };
 
     const addBookToShelf = async () => {
