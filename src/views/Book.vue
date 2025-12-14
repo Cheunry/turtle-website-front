@@ -128,12 +128,40 @@
                     >({{ newestComments.commentTotal }}条)</span
                   >
                 </div>
-                <a
-                  class="fr"
-                  @click="goToAnchor('txtComment')"
-                  href="javascript:void(0)"
-                  >发表评论</a
-                >
+              </div>
+              <div class="reply_bar" id="reply_bar">
+                <div class="tit">
+                  <span class="fl font16">发表评论</span>
+
+                  <span class="fr black9" style="display: none"
+                    >请先 <a class="orange" href="/user/login.html">登录</a
+                    ><em class="ml10 mr10">|</em
+                    ><a class="orange" href="/user/register.html">注册</a></span
+                  >
+                </div>
+
+                <textarea
+                  v-model="commentContent"
+                  name="txtComment"
+                  rows="2"
+                  cols="20"
+                  id="txtComment"
+                  class="replay_text"
+                  placeholder="我来说两句..."
+                ></textarea>
+                <div class="reply_btn">
+                  <span class="fl black9"
+                    ><em class="ml5" id="emCommentNum">0/1000</em> 字</span
+                  >
+                  <span class="fr"
+                    ><a
+                      class="btn_ora"
+                      href="javascript:void(0);"
+                      @click="userComment"
+                      >发表</a
+                    ></span
+                  >
+                </div>
               </div>
               <div
                 v-if="newestComments.commentTotal == 0"
@@ -192,6 +220,17 @@
                   </ul>
                 </div>
               </div>
+              <div class="pageBox cf" v-if="newestComments.commentTotal > 0">
+                <el-pagination
+                  small
+                  background
+                  layout="prev, pager, next"
+                  :total="Number(newestComments.commentTotal)"
+                  :page-size="Number(pageSize)"
+                  :current-page="Number(pageNum)"
+                  @current-change="handleCurrentChange"
+                />
+              </div>
               <el-dialog
                 v-model="dialogUpdateCommentFormVisible"
                 title="评论修改"
@@ -218,41 +257,6 @@
                 <a href="/book/comment-1431636283466297344.html"
                   >查看全部评论&gt;</a
                 >
-              </div>
-
-              <div class="reply_bar" id="reply_bar">
-                <div class="tit">
-                  <span class="fl font16">发表评论</span>
-
-                  <span class="fr black9" style="display: none"
-                    >请先 <a class="orange" href="/user/login.html">登录</a
-                    ><em class="ml10 mr10">|</em
-                    ><a class="orange" href="/user/register.html">注册</a></span
-                  >
-                </div>
-
-                <textarea
-                  v-model="commentContent"
-                  name="txtComment"
-                  rows="2"
-                  cols="20"
-                  id="txtComment"
-                  class="replay_text"
-                  placeholder="我来说两句..."
-                ></textarea>
-                <div class="reply_btn">
-                  <span class="fl black9"
-                    ><em class="ml5" id="emCommentNum">0/1000</em> 字</span
-                  >
-                  <span class="fr"
-                    ><a
-                      class="btn_ora"
-                      href="javascript:void(0);"
-                      @click="userComment"
-                      >发表</a
-                    ></span
-                  >
-                </div>
               </div>
             </div>
           </div>
@@ -337,7 +341,7 @@ import {
   addVisitCount,
   getLastChapterAbout,
   listRecBooks,
-  listNewestComments,
+  listCommentByPage,
 } from "@/api/book";
 import { comment, deleteComment, updateComment, addToBookshelf } from "@/api/user";
 import { getUid } from "@/utils/auth";
@@ -362,7 +366,12 @@ export default {
       books: [],
       chapterAbout: {},
       commentContent: "",
-      newestComments: {},
+      newestComments: {
+        commentTotal: 0,
+        comments: []
+      },
+      pageNum: 1,
+      pageSize: 10,
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
       dialogUpdateCommentFormVisible: false,
       commentId: "",
@@ -373,7 +382,7 @@ export default {
       loadBook(bookId);
       loadRecBooks(bookId);
       loadLastChapterAbout(bookId);
-      loadNewestComments(bookId);
+      loadComments(bookId);
     });
 
     onUpdated(() => {
@@ -413,7 +422,7 @@ export default {
       loadBook(bookId);
       loadRecBooks(bookId);
       loadLastChapterAbout(bookId);
-      loadNewestComments(bookId);
+      loadComments(bookId);
     };
 
     const chapterList = (bookId) => {
@@ -424,9 +433,21 @@ export default {
       addVisitCount({ bookId: bookId });
     };
 
-    const loadNewestComments = async (bookId) => {
-      const { data } = await listNewestComments({ bookId: bookId });
-      state.newestComments = data;
+    const loadComments = async (bookId) => {
+      const { data } = await listCommentByPage({ 
+          bookId: bookId, 
+          pageNum: state.pageNum, 
+          pageSize: state.pageSize 
+      });
+      state.newestComments = {
+          commentTotal: data.total,
+          comments: data.list
+      };
+    };
+
+    const handleCurrentChange = (pageNum) => {
+        state.pageNum = pageNum;
+        loadComments(state.book.id);
     };
 
     const userComment = async () => {
@@ -447,7 +468,8 @@ export default {
         commentContent: state.commentContent,
       });
       state.commentContent = "";
-      loadNewestComments(state.book.id);
+      state.pageNum = 1;
+      loadComments(state.book.id);
     };
 
     const addBookToShelf = async () => {
@@ -470,13 +492,13 @@ export default {
 
     const deleteUserComment = async (id) => {
       await deleteComment(id);
-      loadNewestComments(state.book.id);
+      loadComments(state.book.id);
     };
 
     const goUpdateComment = async (id) => {
       state.dialogUpdateCommentFormVisible = false;
       await updateComment(state.commentId, { content: state.updateComment });
-      loadNewestComments(state.book.id);
+      loadComments(state.book.id);
     };
 
     return {
@@ -494,6 +516,7 @@ export default {
       updateUserComment,
       goUpdateComment,
       getImageUrl,
+      handleCurrentChange,
     };
   },
   mounted() {
@@ -521,7 +544,7 @@ export default {
 };
 </script>
 
-<style>
+<style scoped>
 .el-button:not(.is-text) {
   border: #f80;
   border-color: #f80;
@@ -540,5 +563,15 @@ export default {
 
 .el-button {
   --el-button-hover-bg-color: #ff880061;
+}
+
+:deep(.el-pagination) {
+  justify-content: center;
+}
+:deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
+  background-color: #f80 !important;
+}
+:deep(.el-pagination.is-background .el-pager li:not(.is-disabled):hover) {
+  color: #f80 !important;
 }
 </style>

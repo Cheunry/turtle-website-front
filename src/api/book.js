@@ -62,7 +62,7 @@ export function listUpdateRankBooks() {
     return request.get('/front/book/update_rank');
 }
 
-export function listNewestComments(params) {
-    return request.get('/front/book/comment/newest_list',{ params });
+export function listCommentByPage(params) {
+    return request.get('/front/book/comment/list_page',{ params });
 }
 
