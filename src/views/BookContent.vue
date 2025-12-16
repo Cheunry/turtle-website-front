@@ -265,6 +265,8 @@ import "@/assets/styles/read.css";
 import { reactive, toRefs, onMounted, onBeforeUnmount, onUnmounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { getBookContent, getPreChapterId, getNextChapterId } from "@/api/book";
+import { getUid } from "@/utils/auth";
+import { updateBookshelfProcess } from "@/api/user";
 import { ElMessage } from "element-plus";
 import Top from "@/components/common/Top";
 import Footer from "@/components/common/Footer";

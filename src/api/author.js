@@ -38,9 +38,7 @@ export function aiGenerate(action,params) {
         formData.append(key, params[key]);
     });
     return request.post(`/author/ai/${action}`, formData, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
+        // FormData 会自动设置 Content-Type 为 multipart/form-data，不需要手动设置
         timeout: 60000
       });
 }

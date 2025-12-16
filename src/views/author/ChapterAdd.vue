@@ -48,7 +48,7 @@
                         v-for="btn in aiButtons"
                         :key="btn.action"
                         :type="btn.type"
-                        :disabled="!hasSelection || generating"
+                        :disabled="(btn.action !== 'polish' && !hasSelection) || generating || !chapter.content"
                         @click="openDialog(btn.action)"
                         size="small"
                       >
@@ -194,6 +194,8 @@ import { useRouter, useRoute } from "vue-router";
 import { ElMessage} from "element-plus";
 import { publishChapter, aiGenerate } from "@/api/author";
 import AuthorHeader from "@/components/author/Header.vue";
+import { Loading } from "@element-plus/icons-vue";
+
 export default {
   name: "authorChapterAdd",
   components: {
@@ -311,12 +313,26 @@ export default {
     };
 
     const handleAI = async (action) => {    
+      // 如果没有选中文本，对于润色功能使用全部内容
+      if (!state.hasSelection && action === 'polish') {
+        if (!state.chapter.content || state.chapter.content.trim().length === 0) {
+          ElMessage.warning("请先输入章节内容");
+          return;
+        }
+        state.selectedText = state.chapter.content;
+      }
+      
+      // 其他功能需要选中文本
+      if (!state.hasSelection && action !== 'polish') {
+        ElMessage.warning("请先选中要处理的文本");
+        return;
+      }
 
       try {
         state.generating = true
         
         const params = {
-          text: state.selectedText
+          text: state.selectedText || state.chapter.content
         }
 
         // 添加参数
@@ -329,13 +345,45 @@ export default {
 
         const response = await aiGenerate(action,params)
 
-        // 在原有内容后追加生成内容，并实现打字效果
-        const newContent = `\n\n【AI生成内容】${response.data}`;
+        // 修复：使用正确的响应数据结构
+        let resultText = '';
+        if (action === 'polish' && response.data && response.data.polishedText) {
+          resultText = response.data.polishedText;
+        } else if (response.data) {
+          resultText = typeof response.data === 'string' ? response.data : response.data.text || '';
+        }
+
+        // 替换选中的文本，而不是追加
+        if (state.hasSelection && editor.value && action !== 'polish') {
+          // 对于扩写、缩写、续写，替换选中文本
+          const start = editor.value.selectionStart;
+          const end = editor.value.selectionEnd;
+          const beforeText = state.chapter.content.substring(0, start);
+          const afterText = state.chapter.content.substring(end);
+          state.chapter.content = beforeText + resultText + afterText;
+          
+          setTimeout(() => {
+            editor.value.focus();
+            editor.value.setSelectionRange(start + resultText.length, start + resultText.length);
+          }, 0);
+        } else if (action === 'polish') {
+          // 对于润色，直接替换全部内容
+          state.chapter.content = resultText;
+          setTimeout(() => {
+            if (editor.value) {
+              editor.value.focus();
+            }
+          }, 0);
+        } else {
+          // 其他情况追加到末尾
+          const newContent = `\n\n【AI生成内容】${resultText}`;
+          await typewriterEffect(newContent);
+        }
+        
         state.hasSelection = false;
         state.selectedText = '';
-        await typewriterEffect(newContent);
       } catch (error) {
-        ElMessage.error("AI生成失败：" + error.message);
+        ElMessage.error("AI生成失败：" + (error.message || error));
       } finally {
         state.generating = false;
       }

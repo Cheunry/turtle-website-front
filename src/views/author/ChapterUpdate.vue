@@ -45,13 +45,79 @@
                   </li>
                   <b>章节内容：</b>
                   <li id="contentLi">
+                    <!-- 添加AI工具栏 -->
+                    <div class="ai-toolbar">
+                      <el-button
+                        v-for="btn in aiButtons"
+                        :key="btn.action"
+                        :type="btn.type"
+                        :disabled="(btn.action !== 'polish' && !hasSelection) || generating || !chapter.content"
+                        @click="openDialog(btn.action)"
+                        size="small"
+                      >
+                        {{ btn.label }}
+                        <el-icon v-if="generating" class="is-loading">
+                          <Loading />
+                        </el-icon>
+                      </el-button>
+
+                      <!-- 参数输入对话框 -->
+                      <el-dialog
+                        v-model="dialogVisible"
+                        :title="dialogTitle"
+                        width="30%"
+                      >
+                        <div
+                          v-if="
+                            currentAction === 'expand' ||
+                            currentAction === 'condense'
+                          "
+                        >
+                          <el-input
+                            v-model.number="ratio"
+                            type="number"
+                            :placeholder="`请输入${
+                              currentAction === 'expand' ? '扩写' : '缩写'
+                            }比例（1-200%）`"
+                            min="1"
+                            max="200"
+                          >
+                            <template #append>%</template>
+                          </el-input>
+                        </div>
+
+                        <div v-if="currentAction === 'continue'">
+                          <el-input
+                            v-model.number="length"
+                            type="number"
+                            placeholder="请输入续写长度（50-1000字）"
+                            min="50"
+                            max="1000"
+                          >
+                            <template #append>字</template>
+                          </el-input>
+                        </div>
+
+                        <template #footer>
+                          <el-button @click="dialogVisible = false"
+                            >取消</el-button
+                          >
+                          <el-button type="primary" @click="confirmParams"
+                            >确定</el-button
+                          >
+                        </template>
+                      </el-dialog>
+                    </div>
                     <textarea
+                      ref="editor"
                       v-model="chapter.content"
                       name="bookContent"
                       rows="30"
                       cols="80"
                       id="bookContent"
                       class="textarea"
+                      @mouseup="checkSelection"
+                      @keyup="checkSelection"
                     ></textarea>
                   </li>
                   <br />
@@ -126,12 +192,13 @@
 
 <script>
 import "@/assets/styles/book.css";
-import { reactive, toRefs, onMounted, ref } from "vue";
+import { reactive, toRefs, onMounted, ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
-import { updateChapter, getChapter } from "@/api/author";
+import { updateChapter, getChapter, aiGenerate } from "@/api/author";
 import AuthorHeader from "@/components/author/Header.vue";
-import picUpload from "@/assets/images/pic_upload.png";
+import { Loading } from "@element-plus/icons-vue";
+
 export default {
   name: "authorChapterUpdate",
   components: {
@@ -140,27 +207,192 @@ export default {
   setup() {
     const route = useRoute();
     const router = useRouter();
+    const editor = ref(null);
 
     const state = reactive({
       bookId: route.query.bookId,
       chapterNum: route.query.chapterNum,
       chapter: { chapterName: "", content: "", isVip: 0 },
+      hasSelection: false,
+      generating: false,
+      selectedText: "",
+      aiButtons: [
+        { label: "AI扩写", action: "expand", type: "primary" },
+        { label: "AI缩写", action: "condense", type: "success" },
+        { label: "AI续写", action: "continue", type: "warning" },
+        { label: "AI润色", action: "polish", type: "danger" },
+      ],
+      dialogVisible: false,
+      currentAction: '',
+      ratio: 30,
+      length: 200,
     });
+
+    const dialogTitle = computed(() => {
+      const map = {
+        expand: '扩写设置',
+        condense: '缩写设置',
+        continue: '续写设置',
+        polish: '润色设置'
+      }
+      return map[state.currentAction]
+    })
+
+    const openDialog = (action) => {
+      state.currentAction = action
+      if (action === 'polish') {
+        handleAI(action)
+      } else {
+        state.dialogVisible = true
+      }
+    }
+
+    const validateParams = () => {
+      if (state.currentAction === 'expand') {
+        if (!state.ratio || state.ratio < 110 || state.ratio > 200) {
+          ElMessage.error('请输入110-200%之间的比例')
+          return false
+        }
+      }
+      if (state.currentAction === 'condense') {
+        if (!state.ratio || state.ratio < 1 || state.ratio > 99) {
+          ElMessage.error('请输入1-99%之间的比例')
+          return false
+        }
+      }
+      if (state.currentAction === 'continue') {
+        if (!state.length || state.length < 50 || state.length > 1000) {
+          ElMessage.error('请输入50-1000字之间的长度')
+          return false
+        }
+      }
+      return true
+    }
+
+    const confirmParams = async () => {
+      if (!validateParams()) return
+      
+      state.dialogVisible = false
+      await handleAI(state.currentAction)
+    }
+
+    const checkSelection = () => {
+      const textarea = editor.value;
+      if (textarea) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        state.hasSelection = start !== end;
+        if (state.hasSelection) {
+          state.selectedText = textarea.value.substring(start, end);
+        }
+      }
+    };
+
+    const typewriterEffect = (text) => {
+      return new Promise((resolve) => {
+        let index = 0;
+        const typing = setInterval(() => {
+          if (index < text.length) {
+            state.chapter.content += text.charAt(index);
+            index++;
+            editor.value.scrollTop = editor.value.scrollHeight;
+          } else {
+            clearInterval(typing);
+            resolve();
+          }
+        }, 20);
+      });
+    };
+
+    const handleAI = async (action) => {    
+      // 如果没有选中文本，对于润色功能使用全部内容
+      if (!state.hasSelection && action === 'polish') {
+        if (!state.chapter.content || state.chapter.content.trim().length === 0) {
+          ElMessage.warning("请先输入章节内容");
+          return;
+        }
+        state.selectedText = state.chapter.content;
+      }
+      
+      // 其他功能需要选中文本
+      if (!state.hasSelection && action !== 'polish') {
+        ElMessage.warning("请先选中要处理的文本");
+        return;
+      }
+
+      try {
+        state.generating = true
+        
+        const params = {
+          text: state.selectedText || state.chapter.content
+        }
+
+        if (action === 'expand' || action === 'condense') {
+          params.ratio = state.ratio
+        }
+        if (action === 'continue') {
+          params.length = state.length
+        }
+
+        const response = await aiGenerate(action, params)
+
+        // 修复：使用正确的响应数据结构
+        // 对于润色，后端返回的是 { data: { polishedText: "..." } }
+        // 对于其他功能，可能需要根据实际返回结构调整
+        let resultText = '';
+        if (action === 'polish' && response.data && response.data.polishedText) {
+          resultText = response.data.polishedText;
+        } else if (response.data) {
+          // 其他AI功能可能直接返回文本
+          resultText = typeof response.data === 'string' ? response.data : response.data.text || '';
+        }
+
+        // 替换选中的文本，而不是追加
+        if (state.hasSelection && editor.value && action !== 'polish') {
+          // 对于扩写、缩写、续写，替换选中文本
+          const start = editor.value.selectionStart;
+          const end = editor.value.selectionEnd;
+          const beforeText = state.chapter.content.substring(0, start);
+          const afterText = state.chapter.content.substring(end);
+          state.chapter.content = beforeText + resultText + afterText;
+          
+          setTimeout(() => {
+            editor.value.focus();
+            editor.value.setSelectionRange(start + resultText.length, start + resultText.length);
+          }, 0);
+        } else if (action === 'polish') {
+          // 对于润色，直接替换全部内容
+          state.chapter.content = resultText;
+          setTimeout(() => {
+            if (editor.value) {
+              editor.value.focus();
+            }
+          }, 0);
+        } else {
+          // 其他情况追加到末尾
+          const newContent = `\n\n【AI生成内容】${resultText}`;
+          await typewriterEffect(newContent);
+        }
+        
+        state.hasSelection = false;
+        state.selectedText = '';
+      } catch (error) {
+        ElMessage.error("AI生成失败：" + (error.message || error));
+      } finally {
+        state.generating = false;
+      }
+    };
 
     onMounted(() => {
       load();
     });
 
     const load = async () => {
-      // 这里的 API 调用现在需要两个参数
       const { data } = await getChapter(state.bookId, state.chapterNum);
       state.chapter = data;
     };
 
     const updateBookChapter = async () => {
-      console.log("sate=========", state.chapter);
-      
-      // 新增校验
       if (!state.chapter.chapterNum) {
         ElMessage.error("章节号不能为空！");
         return;
@@ -181,19 +413,22 @@ export default {
         return;
       }
 
-      // 注意参数顺序：bookId, oldChapterNum, params (包含 newChapterNum)
-      // state.chapterNum 是路由传进来的旧章节号
-      // state.chapter 是表单数据，包含可能被用户修改了的新章节号
       await updateChapter(state.bookId, state.chapterNum, state.chapter);
       
       ElMessage.success("更新成功！");
-      // 更新成功后跳转回章节列表，避免页面数据不一致
       router.push({ name: 'authorChapterList', query: { id: state.bookId } });
     };
 
     return {
       ...toRefs(state),
+      editor,
       updateBookChapter,
+      checkSelection,
+      handleAI,
+      dialogTitle,
+      openDialog,
+      confirmParams,
+      Loading,
     };
   },
 };
@@ -790,5 +1025,29 @@ a.redBtn:hover {
   border-radius: 6px;
   padding: 10px;
   line-height: 1.8;
+}
+
+/* 添加AI工具栏样式 */
+.ai-toolbar {
+  margin-bottom: 10px;
+  width: 500px;
+}
+.ai-toolbar .el-button {
+  margin-right: 10px;
+}
+
+.textarea {
+  position: relative;
+  font-family: "Microsoft YaHei", sans-serif;
+  line-height: 1.6;
+  padding: 10px;
+}
+
+.ai-toolbar .el-input {
+  margin-bottom: 15px;
+}
+
+:deep(.el-dialog__body) {
+  padding: 20px;
 }
 </style>
