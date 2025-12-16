@@ -229,6 +229,9 @@ export default {
 </style>
 
 <style scoped>
+.main.box_center {
+  width: 1300px;
+}
 .redBtn {
   padding: 5px;
   border-radius: 20px;
@@ -350,7 +353,7 @@ a.redBtn:hover {
   background: #dfdfdf;
 }
 .log_code {
-  *padding-bottom: 25px;
+  padding-bottom: 25px;
 }
 .user_l .btn_red {
   width: 100%;
@@ -391,7 +394,6 @@ a.redBtn:hover {
 }
 .fast_list li {
   display: inline-block;
-  *display: inline;
   zoom: 1;
 }
 .fast_list li .img {
@@ -487,7 +489,7 @@ a.redBtn:hover {
   background-position: 32px -481px;
 }
 .my_r {
-  width: 739px;
+  width: 1000px;
   padding: 0 30px 30px;
   float: right;
   border-left: 1px solid #efefef;
@@ -558,7 +560,7 @@ a.redBtn:hover {
   font-weight: normal;
 }
 .updateTable {
-  width: 739px;
+  width: 100%;
   color: #999;
 }
 .updateTable table {
@@ -638,7 +640,7 @@ a.redBtn:hover {
   background: #fafafa;
 }
 .dataTable {
-  width: 739px;
+  width: 100%;
 }
 .dataTable table {
   width: 100%;

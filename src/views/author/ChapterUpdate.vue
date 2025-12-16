@@ -5,8 +5,8 @@
       <div class="my_l">
         <ul class="log_list">
           <li>
-            <router-link class="link_4 on" :to="{ name: 'authorBookList' }"
-              >小说管理</router-link
+            <router-link class="link_4 on" :to="{ name: 'authorChapterList', query: { id: bookId } }"
+              >返回章节列表</router-link
             >
           </li>
           <!--<li><a class="link_1 " href="/user/userinfo.html">批量小说爬取</a></li>
@@ -60,6 +60,14 @@
                           <Loading />
                         </el-icon>
                       </el-button>
+                      <el-button
+                        type="info"
+                        size="small"
+                        @click="enterFullscreen"
+                        style="margin-left: 10px;"
+                      >
+                        全屏输入
+                      </el-button>
 
                       <!-- 参数输入对话框 -->
                       <el-dialog
@@ -112,14 +120,92 @@
                       ref="editor"
                       v-model="chapter.content"
                       name="bookContent"
-                      rows="30"
-                      cols="80"
+                      rows="12"
+                      cols="106"
                       id="bookContent"
                       class="textarea"
                       @mouseup="checkSelection"
                       @keyup="checkSelection"
                     ></textarea>
                   </li>
+                  
+                  <!-- 全屏编辑模式 -->
+                  <div v-if="isFullscreen" class="fullscreen-editor">
+                    <div class="fullscreen-header">
+                      <h3>沉浸式编辑 - {{ chapter.chapterName || '章节内容' }}</h3>
+                      <el-button type="primary" @click="exitFullscreen">
+                        返回
+                      </el-button>
+                    </div>
+                    <div class="fullscreen-toolbar">
+                      <el-button
+                        v-for="btn in aiButtons"
+                        :key="btn.action"
+                        :type="btn.type"
+                        :disabled="(btn.action !== 'polish' && !hasSelection) || generating || !chapter.content"
+                        @click="openDialog(btn.action)"
+                        size="small"
+                      >
+                        {{ btn.label }}
+                        <el-icon v-if="generating" class="is-loading">
+                          <Loading />
+                        </el-icon>
+                      </el-button>
+                      <el-dialog
+                        v-model="dialogVisible"
+                        :title="dialogTitle"
+                        width="30%"
+                      >
+                        <div
+                          v-if="
+                            currentAction === 'expand' ||
+                            currentAction === 'condense'
+                          "
+                        >
+                          <el-input
+                            v-model.number="ratio"
+                            type="number"
+                            :placeholder="`请输入${
+                              currentAction === 'expand' ? '扩写' : '缩写'
+                            }比例（1-200%）`"
+                            min="1"
+                            max="200"
+                          >
+                            <template #append>%</template>
+                          </el-input>
+                        </div>
+
+                        <div v-if="currentAction === 'continue'">
+                          <el-input
+                            v-model.number="length"
+                            type="number"
+                            placeholder="请输入续写长度（50-1000字）"
+                            min="50"
+                            max="1000"
+                          >
+                            <template #append>字</template>
+                          </el-input>
+                        </div>
+
+                        <template #footer>
+                          <el-button @click="dialogVisible = false"
+                            >取消</el-button
+                          >
+                          <el-button type="primary" @click="confirmParams"
+                            >确定</el-button
+                          >
+                        </template>
+                      </el-dialog>
+                    </div>
+                    <textarea
+                      ref="fullscreenEditor"
+                      v-model="chapter.content"
+                      name="bookContentFullscreen"
+                      class="fullscreen-textarea"
+                      @mouseup="checkSelection"
+                      @keyup="checkSelection"
+                    ></textarea>
+                  </div>
                   <br />
 
                   <b>是否收费：</b>
@@ -208,6 +294,7 @@ export default {
     const route = useRoute();
     const router = useRouter();
     const editor = ref(null);
+    const fullscreenEditor = ref(null);
 
     const state = reactive({
       bookId: route.query.bookId,
@@ -216,6 +303,7 @@ export default {
       hasSelection: false,
       generating: false,
       selectedText: "",
+      isFullscreen: false,
       aiButtons: [
         { label: "AI扩写", action: "expand", type: "primary" },
         { label: "AI缩写", action: "condense", type: "success" },
@@ -277,7 +365,8 @@ export default {
     }
 
     const checkSelection = () => {
-      const textarea = editor.value;
+      // 优先使用全屏编辑器，如果没有则使用普通编辑器
+      const textarea = state.isFullscreen ? fullscreenEditor.value : editor.value;
       if (textarea) {
         const start = textarea.selectionStart;
         const end = textarea.selectionEnd;
@@ -295,7 +384,11 @@ export default {
           if (index < text.length) {
             state.chapter.content += text.charAt(index);
             index++;
-            editor.value.scrollTop = editor.value.scrollHeight;
+            // 自动滚动到底部
+            const currentEditor = state.isFullscreen ? fullscreenEditor.value : editor.value;
+            if (currentEditor) {
+              currentEditor.scrollTop = currentEditor.scrollHeight;
+            }
           } else {
             clearInterval(typing);
             resolve();
@@ -347,25 +440,30 @@ export default {
           resultText = typeof response.data === 'string' ? response.data : response.data.text || '';
         }
 
+        // 获取当前使用的编辑器
+        const currentEditor = state.isFullscreen ? fullscreenEditor.value : editor.value;
+        
         // 替换选中的文本，而不是追加
-        if (state.hasSelection && editor.value && action !== 'polish') {
+        if (state.hasSelection && currentEditor && action !== 'polish') {
           // 对于扩写、缩写、续写，替换选中文本
-          const start = editor.value.selectionStart;
-          const end = editor.value.selectionEnd;
+          const start = currentEditor.selectionStart;
+          const end = currentEditor.selectionEnd;
           const beforeText = state.chapter.content.substring(0, start);
           const afterText = state.chapter.content.substring(end);
           state.chapter.content = beforeText + resultText + afterText;
           
           setTimeout(() => {
-            editor.value.focus();
-            editor.value.setSelectionRange(start + resultText.length, start + resultText.length);
+            if (currentEditor) {
+              currentEditor.focus();
+              currentEditor.setSelectionRange(start + resultText.length, start + resultText.length);
+            }
           }, 0);
         } else if (action === 'polish') {
           // 对于润色，直接替换全部内容
           state.chapter.content = resultText;
           setTimeout(() => {
-            if (editor.value) {
-              editor.value.focus();
+            if (currentEditor) {
+              currentEditor.focus();
             }
           }, 0);
         } else {
@@ -419,9 +517,30 @@ export default {
       router.push({ name: 'authorChapterList', query: { id: state.bookId } });
     };
 
+    const enterFullscreen = () => {
+      state.isFullscreen = true;
+      // 等待 DOM 更新后聚焦到全屏编辑器
+      setTimeout(() => {
+        if (fullscreenEditor.value) {
+          fullscreenEditor.value.focus();
+        }
+      }, 100);
+    };
+
+    const exitFullscreen = () => {
+      state.isFullscreen = false;
+      // 返回后聚焦到原编辑器
+      setTimeout(() => {
+        if (editor.value) {
+          editor.value.focus();
+        }
+      }, 100);
+    };
+
     return {
       ...toRefs(state),
       editor,
+      fullscreenEditor,
       updateBookChapter,
       checkSelection,
       handleAI,
@@ -429,6 +548,8 @@ export default {
       openDialog,
       confirmParams,
       Loading,
+      enterFullscreen,
+      exitFullscreen,
     };
   },
 };
@@ -447,6 +568,9 @@ export default {
 </style>
 
 <style scoped>
+.main.box_center {
+  width: 1300px;
+}
 .redBtn {
   padding: 5px;
   border-radius: 20px;
@@ -506,9 +630,9 @@ a.redBtn:hover {
   margin: 0 auto;
 }
 .user_l {
-  width: 350px;
+  width: 700px;
   float: left;
-  padding: 100px 124px;
+  padding: 100px 80px;
 }
 .user_l h3 {
   font-size: 23px;
@@ -525,14 +649,14 @@ a.redBtn:hover {
   font-size: 14px;
 }
 .user_l .log_list {
-  width: 350px;
+  width: 700px;
 }
 .user_l .s_input {
   margin-bottom: 25px;
   font-size: 14px;
 }
 .s_input {
-  width: 348px;
+  width: 680px;
   height: 38px;
   line-height: 38px\9;
   vertical-align: middle;
@@ -568,7 +692,7 @@ a.redBtn:hover {
   background: #dfdfdf;
 }
 .log_code {
-  *padding-bottom: 25px;
+  padding-bottom: 25px;
 }
 .user_l .btn_red {
   width: 100%;
@@ -609,7 +733,6 @@ a.redBtn:hover {
 }
 .fast_list li {
   display: inline-block;
-  *display: inline;
   zoom: 1;
 }
 .fast_list li .img {
@@ -705,7 +828,7 @@ a.redBtn:hover {
   background-position: 32px -481px;
 }
 .my_r {
-  width: 739px;
+  width: 1000px;
   padding: 0 30px 30px;
   float: right;
   border-left: 1px solid #efefef;
@@ -1030,17 +1153,23 @@ a.redBtn:hover {
 /* 添加AI工具栏样式 */
 .ai-toolbar {
   margin-bottom: 10px;
-  width: 500px;
+  width: 680px;
 }
 .ai-toolbar .el-button {
   margin-right: 10px;
 }
 
 .textarea {
+  width: 680px;
   position: relative;
   font-family: "Microsoft YaHei", sans-serif;
   line-height: 1.6;
   padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  font-size: 14px;
+  box-sizing: border-box;
+  resize: vertical;
 }
 
 .ai-toolbar .el-input {
@@ -1049,5 +1178,60 @@ a.redBtn:hover {
 
 :deep(.el-dialog__body) {
   padding: 20px;
+}
+
+/* 全屏编辑样式 */
+.fullscreen-editor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+}
+
+.fullscreen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 30px;
+  background: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.fullscreen-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: normal;
+  color: #333;
+}
+
+.fullscreen-toolbar {
+  padding: 15px 30px;
+  background: #fafafa;
+  border-bottom: 1px solid #eee;
+}
+
+.fullscreen-toolbar .el-button {
+  margin-right: 10px;
+}
+
+.fullscreen-textarea {
+  flex: 1;
+  width: 100%;
+  padding: 30px;
+  border: none;
+  outline: none;
+  font-family: "Microsoft YaHei", sans-serif;
+  font-size: 16px;
+  line-height: 2;
+  resize: none;
+  box-sizing: border-box;
+  background: #fff;
+  color: #333;
 }
 </style>

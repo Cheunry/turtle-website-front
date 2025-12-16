@@ -19,18 +19,20 @@
               <h3>小说基本信息修改</h3>
               <ul class="log_list">
                 <li><span id="LabErr"></span></li>
-                <b>作品方向：</b>
-                <li>
-                  <select v-model="book.workDirection" class="s_input" @change="loadCategoryList()">
-                    <option :value="0">男频</option>
-                    <option :value="1">女频</option>
-                  </select>
-                </li>
-                <b>分类：</b>
-                <li>
-                  <select class="s_input" v-model="book.categoryId" @change="categoryChange">
-                    <option :value="item.id" v-for="(item,index) in bookCategorys" :key="index">{{item.name}}</option>
-                  </select>
+                <li class="form-row">
+                  <div class="form-item">
+                    <b>作品方向：</b>
+                    <select v-model="book.workDirection" class="s_input s_input_inline" @change="loadCategoryList()">
+                      <option :value="0">男频</option>
+                      <option :value="1">女频</option>
+                    </select>
+                  </div>
+                  <div class="form-item">
+                    <b>分类：</b>
+                    <select class="s_input s_input_inline" v-model="book.categoryId" @change="categoryChange">
+                      <option :value="item.id" v-for="(item,index) in bookCategorys" :key="index">{{item.name}}</option>
+                    </select>
+                  </div>
                 </li>
                 <b>小说名：</b>
                 <li>
@@ -55,7 +57,7 @@
                 </li>
                 <b>小说介绍：</b>
                 <li>
-                  <textarea v-model="book.bookDesc" rows="5" cols="53" class="textarea" id="bookDesc"></textarea>
+                  <textarea v-model="book.bookDesc" rows="5" cols="106" class="textarea" id="bookDesc"></textarea>
                 </li>
                 <li>
                   <input type="button" @click="saveBook" value="保存修改" class="btn_red" />
@@ -154,10 +156,13 @@ export default {
 </script>
 
 <style scoped>
+.main.box_center {
+  width: 1300px;
+}
 .user_l {
-  width: 350px;
+  width: 700px;
   float: left;
-  padding: 100px 124px;
+  padding: 100px 80px;
 }
 .user_l h3 {
   font-size: 23px;
@@ -166,10 +171,10 @@ export default {
   text-align: center;
 }
 .user_l .log_list {
-  width: 350px;
+  width: 700px;
 }
 .s_input {
-  width: 348px;
+  width: 680px;
   height: 38px;
   line-height: 38px\9;
   vertical-align: middle;
@@ -178,10 +183,36 @@ export default {
   margin-bottom: 25px;
   font-size: 14px;
 }
+.s_input_inline {
+  width: 320px;
+}
+.form-row {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 25px;
+  align-items: flex-start;
+}
+.form-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.form-item b {
+  margin-bottom: 8px;
+  font-weight: normal;
+}
+.form-item .s_input_inline {
+  width: 100%;
+}
 .textarea {
-    width: 348px;
-    border: 1px solid #ddd;
-    border-radius: 2px;
+  width: 680px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 2px;
+  font-size: 14px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
 }
 .user_l .btn_red {
   width: 100%;
@@ -218,7 +249,7 @@ export default {
   background-position: 32px -314px;
 }
 .my_r {
-  width: 739px;
+  width: 1000px;
   padding: 0 30px 30px;
   float: right;
   border-left: 1px solid #efefef;
