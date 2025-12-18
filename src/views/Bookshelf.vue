@@ -18,14 +18,36 @@
                 <a href="javascript:void(0)" @click="bookDetail(item.bookId)">{{ item.bookName }}</a>
               </h3>
               <p class="author">作者：{{ item.authorName }}</p>
-              <p class="newest">
+              <!-- 如果书籍未审核通过或待审核，显示提示信息 -->
+              <p v-if="getAuditStatus(item.auditStatus) !== 1" class="audit_tip" style="color: #f56c6c; margin: 10px 0;">
+                {{ getAuditStatus(item.auditStatus) === 0 ? '该小说正在审核中，暂时无法查看' : '该小说审核未通过，暂时无法查看' }}
+              </p>
+              <p v-else class="newest">
                 {{ item.preChapterNum > 0 ? `上次阅读到第 ${item.preChapterNum} 章` : '尚未开始阅读' }}
               </p>
               <p class="read_btn">
-                <!-- 逻辑简化：只要有阅读进度就用进度，否则直接用书的首章节号（如果是null则兜底为0） -->
-                <!-- 这里的 !== null 判断非常重要，因为 0 是有效的章节号 -->
-                <a class="btn_red" href="javascript:void(0)" @click="bookContent(item.bookId, item.preChapterNum > 0 ? item.preChapterNum : (item.firstChapterNum !== null ? item.firstChapterNum : 1))">
+                <!-- 只有审核通过的书籍才能阅读 -->
+                <a 
+                  v-if="getAuditStatus(item.auditStatus) === 1 && item.firstChapterNum !== null && item.firstChapterNum !== undefined"
+                  class="btn_red" 
+                  href="javascript:void(0)" 
+                  @click="bookContent(item.bookId, item.preChapterNum > 0 ? item.preChapterNum : item.firstChapterNum)">
                   {{ item.preChapterNum > 0 ? '继续阅读' : '开始阅读' }}
+                </a>
+                <a 
+                  v-else-if="getAuditStatus(item.auditStatus) === 1"
+                  class="btn_gray" 
+                  href="javascript:void(0)" 
+                  style="cursor: not-allowed; opacity: 0.5;"
+                  @click="handleNoChapter(item)">
+                  暂无章节
+                </a>
+                <a 
+                  v-else
+                  class="btn_gray" 
+                  href="javascript:void(0)" 
+                  style="cursor: not-allowed; opacity: 0.5;">
+                  暂时无法阅读
                 </a>
                 <a class="btn_gray" href="javascript:void(0)" @click="deleteBook(item.bookId)" style="margin-left: 10px;">移除</a>
               </p>
@@ -91,12 +113,48 @@ export default {
       });
     };
 
+    // 获取审核状态（转换为数字，兼容字符串类型）
+    const getAuditStatus = (auditStatus) => {
+      if (auditStatus === null || auditStatus === undefined || auditStatus === '') {
+        return 0; // 默认为待审核
+      }
+      const status = parseInt(auditStatus, 10);
+      return isNaN(status) ? 0 : status;
+    };
+
     const bookDetail = (bookId) => {
+      // 找到对应的书籍信息
+      const book = state.books.find(b => b.bookId === bookId);
+      // 如果书籍未审核通过或待审核，提示用户
+      if (book && getAuditStatus(book.auditStatus) !== 1) {
+        const status = getAuditStatus(book.auditStatus);
+        const message = status === 0 ? '该小说正在审核中，暂时无法查看' : '该小说审核未通过，暂时无法查看';
+        ElMessage.warning(message);
+        return;
+      }
       router.push({ path: `/book/${bookId}` });
     };
 
     const bookContent = (bookId, chapterNum) => {
+      // 找到对应的书籍信息
+      const book = state.books.find(b => b.bookId === bookId);
+      // 如果书籍未审核通过或待审核，提示用户
+      if (book && getAuditStatus(book.auditStatus) !== 1) {
+        const status = getAuditStatus(book.auditStatus);
+        const message = status === 0 ? '该小说正在审核中，暂时无法查看' : '该小说审核未通过，暂时无法查看';
+        ElMessage.warning(message);
+        return;
+      }
+      // 验证 chapterNum
+      if (!chapterNum || chapterNum === null || chapterNum === undefined) {
+        ElMessage.warning('该书籍暂无可用章节，可能正在审核中或已下架');
+        return;
+      }
       router.push({ path: `/book/${bookId}/${chapterNum}` });
+    };
+
+    const handleNoChapter = (book) => {
+      ElMessage.warning('该书籍暂无可用章节，可能正在审核中或已下架');
     };
 
     return {
@@ -105,6 +163,8 @@ export default {
       bookContent,
       deleteBook,
       getImageUrl,
+      getAuditStatus,
+      handleNoChapter,
     };
   },
 };

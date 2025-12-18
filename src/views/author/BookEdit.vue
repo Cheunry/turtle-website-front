@@ -19,6 +19,19 @@
               <h3>小说基本信息修改</h3>
               <ul class="log_list">
                 <li><span id="LabErr"></span></li>
+                <li class="frequency-tip">
+                  <el-alert
+                    type="warning"
+                    :closable="false"
+                    show-icon
+                  >
+                    <template #title>
+                      <span style="font-size: 14px;">
+                        <strong>更新频率限制：</strong>修改书名或简介时，每次更新需间隔10分钟，每天最多更新10次。更新后会触发AI审核，请谨慎修改。
+                      </span>
+                    </template>
+                  </el-alert>
+                </li>
                 <li class="form-row">
                   <div class="form-item">
                     <b>作品方向：</b>
@@ -60,7 +73,14 @@
                   <textarea v-model="book.bookDesc" rows="5" cols="106" class="textarea" id="bookDesc"></textarea>
                 </li>
                 <li>
-                  <input type="button" @click="saveBook" value="保存修改" class="btn_red" />
+                  <input 
+                    type="button" 
+                    @click="saveBook" 
+                    :value="submitting ? '提交中...' : '保存修改'" 
+                    class="btn_red"
+                    :disabled="submitting"
+                    :style="{ opacity: submitting ? 0.6 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }"
+                  />
                 </li>
               </ul>
             </div>
@@ -82,10 +102,15 @@ import { getImageUrl } from "@/utils/index";
 import AuthorHeader from "@/components/author/Header.vue";
 import picUpload from "@/assets/images/pic_upload.png";
 import ImageCropper from "@/components/common/ImageCropper";
+import { ElAlert } from "element-plus";
 
 export default {
   name: "authorBookEdit",
-  components: { AuthorHeader, ImageCropper },
+  components: { 
+    AuthorHeader, 
+    ImageCropper,
+    ElAlert
+  },
   setup() {
     const route = useRoute();
     const router = useRouter();
@@ -93,6 +118,7 @@ export default {
       book: { workDirection: 0, bookStatus: 0 },
       bookCategorys: [],
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
+      submitting: false, // 提交状态
     });
 
     onMounted(async () => {
@@ -132,14 +158,38 @@ export default {
     };
 
     const saveBook = async () => {
-      if (!state.book.bookName) return ElMessage.error("书名不能为空！");
-      if (!state.book.picUrl) return ElMessage.error("封面不能为空！");
-      if (!state.book.bookDesc) return ElMessage.error("简介不能为空！");
+      // 防止重复提交
+      if (state.submitting) {
+        return;
+      }
+
+      if (!state.book.bookName) {
+        ElMessage.error("书名不能为空！");
+        return;
+      }
+      if (!state.book.picUrl) {
+        ElMessage.error("封面不能为空！");
+        return;
+      }
+      if (!state.book.bookDesc) {
+        ElMessage.error("简介不能为空！");
+        return;
+      }
       
       const params = { ...state.book, bookId: state.book.id };
-      await updateBook(state.book.id, params);
-      ElMessage.success("修改成功");
-      router.push({ name: 'authorBookList' });
+      try {
+        state.submitting = true;
+        await updateBook(state.book.id, params);
+        ElMessage.success("您的小说基本信息已提交成功，请等待审核");
+        // 延迟跳转，确保用户看到提示消息
+        setTimeout(() => {
+          router.push({ name: 'authorBookList' });
+        }, 500);
+      } catch (error) {
+        // 错误信息已经在拦截器中处理
+      } finally {
+        state.submitting = false;
+      }
     };
 
     return {
@@ -218,6 +268,12 @@ export default {
   width: 100%;
   font-size: 19px;
   padding: 12px;
+}
+.frequency-tip {
+  margin-bottom: 20px;
+}
+.frequency-tip .el-alert {
+  padding: 12px 16px;
 }
 .avatar-uploader .avatar {
   width: 178px;

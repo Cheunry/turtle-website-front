@@ -43,6 +43,7 @@
                        章节号
                    </th>
                   <th class="name">章节名</th>
+                  <th class="goread">审核状态</th>
                   <th class="goread">更新时间</th>
                   <th class="goread">是否收费</th>
                   <th class="goread">操作</th>
@@ -62,6 +63,11 @@
                   
                   <td id="name1358314029098041344" class="name">
                     {{ item.chapterName }}
+                  </td>
+                  <td class="goread">
+                    <span :style="{ color: getAuditStatusColor(item.auditStatus) }">
+                      {{ getAuditStatusText(item.auditStatus) }}
+                    </span>
                   </td>
                   <td class="goread">{{ item.chapterUpdateTime }}</td>
 
@@ -185,6 +191,12 @@ export default {
             state.total = Number(pageData.total);
             state.searchCondition.pageNum = Number(pageData.pageNum);
             state.searchCondition.pageSize = Number(pageData.pageSize);
+            
+            // 调试：打印第一条数据，检查 auditStatus 字段
+            if (pageData.list && pageData.list.length > 0) {
+              console.log('第一条章节数据:', pageData.list[0]);
+              console.log('auditStatus 值:', pageData.list[0].auditStatus, '类型:', typeof pageData.list[0].auditStatus);
+            }
         } else {
             state.total = 0;
             state.chapters = [];
@@ -206,11 +218,57 @@ export default {
       load();
     };
 
+    const getAuditStatusText = (auditStatus) => {
+      // 处理 null、undefined 和空字符串
+      if (auditStatus === null || auditStatus === undefined || auditStatus === '') {
+        return '未知';
+      }
+      // 转换为数字进行比较，兼容字符串类型的数字
+      const status = parseInt(auditStatus, 10);
+      if (isNaN(status)) {
+        return '未知';
+      }
+      switch (status) {
+        case 0:
+          return '待审核';
+        case 1:
+          return '审核通过';
+        case 2:
+          return '审核不通过';
+        default:
+          return '未知';
+      }
+    };
+
+    const getAuditStatusColor = (auditStatus) => {
+      // 处理 null、undefined 和空字符串
+      if (auditStatus === null || auditStatus === undefined || auditStatus === '') {
+        return '#999';
+      }
+      // 转换为数字进行比较，兼容字符串类型的数字
+      const status = parseInt(auditStatus, 10);
+      if (isNaN(status)) {
+        return '#999';
+      }
+      switch (status) {
+        case 0:
+          return '#f80'; // 待审核 - 橙色
+        case 1:
+          return '#67c23a'; // 审核通过 - 绿色
+        case 2:
+          return '#f56c6c'; // 审核不通过 - 红色
+        default:
+          return '#999';
+      }
+    };
+
     return {
       ...toRefs(state),
       handleCurrentChange,
       load,
       deleteBookChapter,
+      getAuditStatusText,
+      getAuditStatusColor,
     };
   },
 };

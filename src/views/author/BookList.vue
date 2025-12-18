@@ -32,6 +32,7 @@
                 <tr>
                   <th class="goread">书名</th>
                   <th class="goread">分类</th>
+                  <th class="goread">审核状态</th>
                   <th class="goread">点击量</th>
                   <th class="goread">昨日订阅数</th>
                   <th class="goread">更新时间</th>
@@ -59,6 +60,11 @@
                     </div>
                   </td>
                   <td class="goread">{{ item.categoryName }}</td>
+                  <td class="goread">
+                    <span :style="{ color: getAuditStatusColor(item.auditStatus) }">
+                      {{ getAuditStatusText(item.auditStatus) }}
+                    </span>
+                  </td>
                   <td class="goread" valsc="291|2037554|1">
                     {{ item.visitCount }}
                   </td>
@@ -164,6 +170,11 @@ export default {
       state.searchCondition.pageNum = data.pageNum;
       state.searchCondition.pageSize = data.pageSize;
       state.total = Number(data.total);
+      // 调试：打印第一条数据，检查 auditStatus 字段
+      if (data.list && data.list.length > 0) {
+        console.log('第一条书籍数据:', data.list[0]);
+        console.log('auditStatus 值:', data.list[0].auditStatus, '类型:', typeof data.list[0].auditStatus);
+      }
     };
 
     const handleCurrentChange = (pageNum) => {
@@ -199,6 +210,50 @@ export default {
       return parts.length > 1 ? parts[1] : '';
     };
 
+    const getAuditStatusText = (auditStatus) => {
+      // 处理 null、undefined 和空字符串
+      if (auditStatus === null || auditStatus === undefined || auditStatus === '') {
+        return '未知';
+      }
+      // 转换为数字进行比较，兼容字符串类型的数字
+      const status = parseInt(auditStatus, 10);
+      if (isNaN(status)) {
+        return '未知';
+      }
+      switch (status) {
+        case 0:
+          return '待审核';
+        case 1:
+          return '审核通过';
+        case 2:
+          return '审核不通过';
+        default:
+          return '未知';
+      }
+    };
+
+    const getAuditStatusColor = (auditStatus) => {
+      // 处理 null、undefined 和空字符串
+      if (auditStatus === null || auditStatus === undefined || auditStatus === '') {
+        return '#999';
+      }
+      // 转换为数字进行比较，兼容字符串类型的数字
+      const status = parseInt(auditStatus, 10);
+      if (isNaN(status)) {
+        return '#999';
+      }
+      switch (status) {
+        case 0:
+          return '#f80'; // 待审核 - 橙色
+        case 1:
+          return '#67c23a'; // 审核通过 - 绿色
+        case 2:
+          return '#f56c6c'; // 审核不通过 - 红色
+        default:
+          return '#999';
+      }
+    };
+
     return {
       ...toRefs(state),
       handleCurrentChange,
@@ -206,7 +261,9 @@ export default {
       deleteBookBtn,
       getImageUrl,
       formatDate,
-      formatTime
+      formatTime,
+      getAuditStatusText,
+      getAuditStatusColor
     };
   },
   computed: {

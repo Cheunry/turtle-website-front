@@ -19,6 +19,19 @@
                 <h3>小说基本信息填写</h3>
                 <ul class="log_list">
                   <li><span id="LabErr"></span></li>
+                  <li class="frequency-tip">
+                    <el-alert
+                      type="warning"
+                      :closable="false"
+                      show-icon
+                    >
+                      <template #title>
+                        <span style="font-size: 14px;">
+                          <strong>提交频率限制：</strong>每次提交需间隔30分钟，每天最多提交5次。提交后会触发AI审核，请谨慎提交。
+                        </span>
+                      </template>
+                    </el-alert>
+                  </li>
                   <li class="form-row">
                     <div class="form-item">
                       <b>作品方向：</b>
@@ -94,9 +107,11 @@
                       type="button"
                       @click="saveBook"
                       name="btnRegister"
-                      value="提交"
+                      :value="submitting ? '提交中...' : '提交'"
                       id="btnRegister"
                       class="btn_red"
+                      :disabled="submitting"
+                      :style="{ opacity: submitting ? 0.6 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }"
                     />
                   </li>
                 </ul>
@@ -151,12 +166,14 @@ import { getImageUrl } from "@/utils/index";
 import AuthorHeader from "@/components/author/Header.vue";
 import picUpload from "@/assets/images/pic_upload.png";
 import ImageCropper from "@/components/common/ImageCropper"; // 引入组件
+import { ElAlert } from "element-plus";
 
 export default {
   name: "authorBookAdd",
   components: {
     AuthorHeader,
-    ImageCropper // 注册
+    ImageCropper, // 注册
+    ElAlert
   },
   setup() {
     const route = useRoute();
@@ -167,6 +184,7 @@ export default {
       bookCategorys: [],
       baseUrl: process.env.VUE_APP_BASE_API_URL,
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
+      submitting: false, // 提交状态
     });
 
     onMounted(() => {
@@ -198,6 +216,11 @@ export default {
     }
 
     const saveBook = async () => {
+      // 防止重复提交
+      if (state.submitting) {
+        return;
+      }
+
       console.log("sate=========",state.book)
       if (!state.book.bookName) {
         ElMessage.error("书名不能为空！");
@@ -211,8 +234,19 @@ export default {
         ElMessage.error("简介不能为空！");
         return;
       }
-      await publishBook(state.book)
-      router.push({'name':'authorBookList'})
+      try {
+        state.submitting = true;
+        await publishBook(state.book)
+        ElMessage.success("您的小说基本信息已提交成功，请等待审核");
+        // 延迟跳转，确保用户看到提示消息
+        setTimeout(() => {
+          router.push({'name':'authorBookList'})
+        }, 500);
+      } catch (error) {
+        // 错误信息已经在拦截器中处理
+      } finally {
+        state.submitting = false;
+      }
     }
 
     return {
@@ -402,6 +436,12 @@ a.redBtn:hover {
   width: 100%;
   font-size: 19px;
   padding: 12px;
+}
+.frequency-tip {
+  margin-bottom: 20px;
+}
+.frequency-tip .el-alert {
+  padding: 12px 16px;
 }
 .autologin {
   color: #999;

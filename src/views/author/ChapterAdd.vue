@@ -227,9 +227,11 @@
                       @click="saveChapter"
                       type="button"
                       name="btnRegister"
-                      value="提交"
+                      :value="submitting ? '提交中...' : '提交'"
                       id="btnRegister"
                       class="btn_red"
+                      :disabled="submitting"
+                      :style="{ opacity: submitting ? 0.6 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }"
                     />
                   </li>
                 </ul>
@@ -299,6 +301,7 @@ export default {
       generating: false,
       selectedText: "",
       isFullscreen: false,
+      submitting: false, // 提交状态
       aiButtons: [
         { label: "AI扩写", action: "expand", type: "primary" },
         { label: "AI缩写", action: "condense", type: "success" },
@@ -486,6 +489,11 @@ export default {
     };
 
     const saveChapter = async () => {
+      // 防止重复提交
+      if (state.submitting) {
+        return;
+      }
+
       console.log("sate=========", state.chapter);
       if (!state.chapter.chapterNum) {
         ElMessage.error("章节号不能为空！");
@@ -511,8 +519,19 @@ export default {
         return;
       }
 
-      await publishChapter(state.bookId, state.chapter);
-      router.push({ name: "authorChapterList", query: { id: state.bookId } });
+      try {
+        state.submitting = true;
+        await publishChapter(state.bookId, state.chapter);
+        ElMessage.success("您的章节内容已提交成功，请等待审核");
+        // 延迟跳转，确保用户看到提示消息
+        setTimeout(() => {
+          router.push({ name: "authorChapterList", query: { id: state.bookId } });
+        }, 500);
+      } catch (error) {
+        ElMessage.error("提交失败：" + (error.message || "未知错误"));
+      } finally {
+        state.submitting = false;
+      }
     };
 
     const enterFullscreen = () => {

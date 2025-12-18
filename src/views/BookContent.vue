@@ -111,11 +111,24 @@
 
               <div class="txtwrap">
                 <div
+                  v-if="data.bookContent"
                   id="showReading"
                   class="readBox"
                   style="font-size: 16px; font-family: microsoft yahei;white-space:break-spaces"
                   v-html="data.bookContent"
                 ></div>
+                <div v-else class="empty-content-tip">
+                  <p class="tip-text">该章节暂无内容</p>
+                  <p class="tip-desc">可能的原因：</p>
+                  <ul class="tip-reasons">
+                    <li>• 章节仍在审核中，请稍后再试</li>
+                    <li>• 章节审核未通过，已下架</li>
+                    <li>• 章节内容已被删除</li>
+                  </ul>
+                  <div class="tip-actions">
+                    <a @click="chapterList(data.chapterInfo?.bookId)" href="javascript:void(0)" class="btn-back">返回目录</a>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -287,6 +300,20 @@ export default {
       // 从路由参数获取 bookId 和 chapterNum
       const bookId = route.params.id; // 路由中的 :id 对应 bookId
       const chapterNum = route.params.chapterNum; // 路由中的 :chapterNum 对应 chapterNum
+      
+      // 验证参数
+      if (!bookId || bookId === 'null' || bookId === 'undefined') {
+        ElMessage.error('书籍ID无效');
+        router.push({ path: '/home' });
+        return;
+      }
+      
+      if (!chapterNum || chapterNum === 'null' || chapterNum === 'undefined') {
+        ElMessage.warning('章节号无效，正在返回目录');
+        router.push({ path: `/chapter_list/${bookId}` });
+        return;
+      }
+      
       init(bookId, chapterNum);
       keyDown();
     });
@@ -328,17 +355,27 @@ export default {
       const chapterNum = state.data.chapterInfo?.chapterNum;
 
       if (!chapterNum) {
-        ElMessage.warning("无法获取章节号！");
+        ElMessage.warning("无法获取章节号，可能该书籍暂无可用章节");
         return;
       }
 
-      const { data } = await getPreChapterId(bookId, chapterNum);
+      if (!bookId) {
+        ElMessage.warning("无法获取书籍ID");
+        return;
+      }
 
-      if (data) {
-        router.push({ path: `/book/${bookId}/${data}` });
-        init(bookId, data);
-      } else {
-        ElMessage.warning("已经是第一章了！");
+      try {
+        const { data } = await getPreChapterId(bookId, chapterNum);
+
+        if (data) {
+          router.push({ path: `/book/${bookId}/${data}` });
+          init(bookId, data);
+        } else {
+          ElMessage.warning("已经是第一章了！");
+        }
+      } catch (error) {
+        console.error('获取上一章失败:', error);
+        ElMessage.warning("无法获取上一章，可能该书籍暂无可用章节");
       }
     };
 
@@ -349,17 +386,27 @@ export default {
       const chapterNum = state.data.chapterInfo?.chapterNum;
 
       if (!chapterNum) {
-        ElMessage.warning("无法获取章节号！");
+        ElMessage.warning("无法获取章节号，可能该书籍暂无可用章节");
         return;
       }
 
-      const { data } = await getNextChapterId(bookId, chapterNum);
+      if (!bookId) {
+        ElMessage.warning("无法获取书籍ID");
+        return;
+      }
 
-      if (data) {
-        router.push({ path: `/book/${bookId}/${data}` });
-        init(bookId, data);
-      } else {
-        ElMessage.warning("已经是最后一章了！");
+      try {
+        const { data } = await getNextChapterId(bookId, chapterNum);
+
+        if (data) {
+          router.push({ path: `/book/${bookId}/${data}` });
+          init(bookId, data);
+        } else {
+          ElMessage.warning("已经是最后一章了！");
+        }
+      } catch (error) {
+        console.error('获取下一章失败:', error);
+        ElMessage.warning("无法获取下一章，可能该书籍暂无可用章节");
       }
     };
 
@@ -368,11 +415,38 @@ export default {
 
 
     const init = async (bookId, chapterNum) => {
-      const { data } = await getBookContent(bookId, chapterNum);
-      state.data = data;
-      // 如果已登录，更新阅读进度
-      if (getUid()) {
-        updateBookshelfProcess(bookId, chapterNum);
+      try {
+        // 验证参数
+        if (!bookId || bookId === 'null' || bookId === 'undefined' || isNaN(Number(bookId))) {
+          ElMessage.error('书籍ID无效');
+          router.push({ path: '/home' });
+          return;
+        }
+        if (!chapterNum || chapterNum === 'null' || chapterNum === 'undefined' || isNaN(Number(chapterNum))) {
+          ElMessage.warning('章节号无效，正在返回目录');
+          router.push({ path: `/chapter_list/${bookId}` });
+          return;
+        }
+        
+        const { data } = await getBookContent(bookId, chapterNum);
+        state.data = data;
+        
+        // 如果章节内容为空，显示提示
+        if (!data || !data.bookContent) {
+          ElMessage.warning('该章节暂无内容，可能正在审核中或已下架');
+        }
+        
+        // 如果已登录，更新阅读进度
+        if (getUid() && data && data.chapterInfo) {
+          updateBookshelfProcess(bookId, chapterNum);
+        }
+      } catch (error) {
+        console.error('加载章节内容失败:', error);
+        ElMessage.error('加载章节内容失败');
+        // 如果加载失败，尝试返回目录
+        if (bookId) {
+          router.push({ path: `/chapter_list/${bookId}` });
+        }
       }
     };
 
@@ -1232,5 +1306,62 @@ body,
 }
 .dqye {
   font-size: 15px;
+}
+
+.empty-content-tip {
+  padding: 60px 40px;
+  text-align: center;
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 4px;
+  margin: 40px auto;
+  max-width: 600px;
+}
+
+.empty-content-tip .tip-text {
+  font-size: 20px;
+  color: #666;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+.empty-content-tip .tip-desc {
+  font-size: 16px;
+  color: #999;
+  margin-bottom: 15px;
+}
+
+.empty-content-tip .tip-reasons {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 30px 0;
+  text-align: left;
+  display: inline-block;
+}
+
+.empty-content-tip .tip-reasons li {
+  font-size: 14px;
+  color: #999;
+  line-height: 28px;
+  padding: 5px 0;
+}
+
+.empty-content-tip .tip-actions {
+  margin-top: 30px;
+}
+
+.empty-content-tip .btn-back {
+  display: inline-block;
+  padding: 10px 30px;
+  background-color: #f70;
+  color: #fff;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 16px;
+  transition: background-color 0.3s;
+}
+
+.empty-content-tip .btn-back:hover {
+  background-color: #f50;
+  color: #fff;
 }
 </style>

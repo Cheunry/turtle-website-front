@@ -80,7 +80,7 @@
                 </div>
                 <a
                   class="fr"
-                  @click="chapterList(book.id)"
+                  @click="chapterList(book.id || route.params.id)"
                   href="javascript:void(0)"
                   >全部目录</a
                 >
@@ -442,7 +442,29 @@ export default {
     };
 
     const chapterList = (bookId) => {
-      router.push({ path: `/chapter_list/${bookId}` });
+      // 优先使用路由中的 bookId（更可靠）
+      const routeBookId = route.params.id;
+      let finalBookId = bookId;
+      
+      // 如果传入的 bookId 无效，使用路由中的 bookId
+      if (!finalBookId || finalBookId === null || finalBookId === undefined) {
+        finalBookId = routeBookId;
+      }
+      
+      // 验证最终 bookId 是否有效
+      if (!finalBookId || finalBookId === 'null' || finalBookId === 'undefined') {
+        ElMessage.warning('无法获取书籍ID，请刷新页面重试');
+        return;
+      }
+      
+      // 验证是否为有效数字
+      const numBookId = Number(finalBookId);
+      if (isNaN(numBookId) || numBookId <= 0) {
+        ElMessage.warning('书籍ID格式错误，无法跳转到目录');
+        return;
+      }
+      
+      router.push({ path: `/chapter_list/${finalBookId}` });
     };
 
     const addBookVisit = async (bookId) => {
