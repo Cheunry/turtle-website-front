@@ -1,7 +1,3 @@
-<script setup>
-
-</script>
-
 <template>
   <AuthorHeader />
   <div class="main box_center cf">
@@ -53,13 +49,73 @@
                 </li>
                 <b>小说封面：</b>
                 <li style="position: relative">
-                  <ImageCropper :fixedNumber="[3, 4]" :limitSize="10" title="修改封面" @uploaded="handleAvatarSuccess">
-                    <template #trigger>
-                      <div class="avatar-uploader">
-                        <img :src="book.picUrl ? getImageUrl(book.picUrl, imgBaseUrl) : picUpload" class="avatar" style="width: 120px; height: 160px; object-fit: cover;" />
+                  <div style="display: flex; align-items: flex-start; gap: 15px;">
+                    <ImageCropper :fixedNumber="[3, 4]" :limitSize="10" title="修改封面" @uploaded="handleAvatarSuccess">
+                      <template #trigger>
+                        <div class="avatar-uploader">
+                          <img :src="book.picUrl ? getImageUrl(book.picUrl, imgBaseUrl) : picUpload" class="avatar" style="width: 120px; height: 160px; object-fit: cover;" />
+                        </div>
+                      </template>
+                    </ImageCropper>
+                    <div style="flex: 1;">
+                      <div style="display: flex; gap: 10px; align-items: center;">
+                        <el-button 
+                          type="primary" 
+                          size="small" 
+                          @click="generateCoverPrompt"
+                          :loading="generatingPrompt"
+                          :disabled="!book.bookName || !book.bookDesc"
+                        >
+                          <el-icon v-if="!generatingPrompt"><MagicStick /></el-icon>
+                          {{ generatingPrompt ? '生成中...' : 'AI生成提示词' }}
+                        </el-button>
+                        <el-button 
+                          type="success" 
+                          size="small" 
+                          @click="generateCover"
+                          :loading="generatingCover"
+                        >
+                          <el-icon v-if="!generatingCover"><Picture /></el-icon>
+                          {{ generatingCover ? 'AI正在绘图中(约30s)...' : '一键生成封面' }}
+                        </el-button>
                       </div>
-                    </template>
-                  </ImageCropper>
+                      <!-- 封面提示词输入框 -->
+                      <div v-if="generatedPrompt" style="margin-top: 15px;">
+                        <div style="margin-bottom: 8px; font-size: 14px; color: #333;">
+                          <b>封面提示词：</b>
+                        </div>
+                        <el-input
+                          v-model="generatedPrompt"
+                          type="textarea"
+                          :rows="4"
+                          placeholder="生成的提示词将显示在这里，您可以编辑"
+                          style="width: 100%;"
+                        />
+                      </div>
+                      
+                      <!-- 封面预览区域 -->
+                      <div v-if="previewCoverUrl" style="margin-top: 20px; border-top: 1px dashed #ddd; padding-top: 15px;">
+                        <div style="font-size: 14px; color: #333; margin-bottom: 10px;"><b>封面预览：</b></div>
+                        <div style="display: flex; gap: 20px; align-items: flex-end;">
+                          <div style="border: 1px solid #eee; padding: 5px; background: #f9f9f9;">
+                            <img :src="previewCoverUrl" style="width: 120px; height: 160px; object-fit: cover; display: block;" />
+                          </div>
+                          <div>
+                            <el-button 
+                              type="success" 
+                              @click="setAsCover" 
+                              :loading="settingCover"
+                            >
+                              使用此封面
+                            </el-button>
+                            <div style="margin-top: 8px; font-size: 12px; color: #666;">
+                              满意后点击使用，将自动保存为正式封面
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </li>
                 <b>书籍状态：</b>
                 <li>
@@ -96,13 +152,15 @@ import "@/assets/styles/book.css";
 import { reactive, toRefs, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
-import { updateBook } from "@/api/author";
+import { updateBook, aiGenerate, aiGenerateImage } from "@/api/author";
+import { uploadImageFromUrl } from "@/api/resource";
 import { getBookById, listCategorys } from "@/api/book";
 import { getImageUrl } from "@/utils/index";
 import AuthorHeader from "@/components/author/Header.vue";
 import picUpload from "@/assets/images/pic_upload.png";
 import ImageCropper from "@/components/common/ImageCropper";
 import { ElAlert } from "element-plus";
+import { MagicStick, Picture } from "@element-plus/icons-vue";
 
 export default {
   name: "authorBookEdit",
@@ -119,6 +177,11 @@ export default {
       bookCategorys: [],
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
       submitting: false, // 提交状态
+      generatingPrompt: false, // 生成提示词状态
+      generatedPrompt: '', // 生成的提示词
+      generatingCover: false, // 生成封面状态
+      previewCoverUrl: '', // 预览封面URL
+      settingCover: false, // 设置封面状态
     });
 
     onMounted(async () => {
@@ -154,6 +217,115 @@ export default {
       const selected = state.bookCategorys.find(c => c.id == event.target.value);
       if (selected) {
         state.book.categoryName = selected.name;
+      }
+    };
+
+    const generateCoverPrompt = async () => {
+      if (!state.book.bookName) {
+        ElMessage.warning("请先填写小说名");
+        return;
+      }
+      if (!state.book.bookDesc) {
+        ElMessage.warning("请先填写小说简介");
+        return;
+      }
+      
+      try {
+        state.generatingPrompt = true;
+        const params = {
+          id: state.book.id,
+          bookName: state.book.bookName,
+          categoryName: state.book.categoryName || '',
+          bookDesc: state.book.bookDesc
+        };
+        const response = await aiGenerate('cover-prompt', params);
+        console.log("封面提示词响应:", response);
+        // 响应拦截器已处理错误，这里直接检查 data
+        if (response && response.data) {
+          state.generatedPrompt = response.data;
+          ElMessage.success("提示词生成成功");
+        } else {
+          console.warn("响应数据异常:", response);
+          ElMessage.error(response?.message || "生成提示词失败，响应数据为空");
+        }
+      } catch (error) {
+        ElMessage.error("生成提示词失败，请稍后重试");
+        console.error("生成封面提示词失败:", error);
+      } finally {
+        state.generatingPrompt = false;
+      }
+    };
+
+    const generateCover = async () => {
+      // 如果没有提示词，先尝试自动生成提示词
+      if (!state.generatedPrompt) {
+          // 检查必要信息
+          if (!state.book.bookName || !state.book.bookDesc) {
+            ElMessage.warning("请先填写小说名和简介");
+            return;
+          }
+          
+          try {
+            // 先调用生成提示词
+            await generateCoverPrompt();
+            // 如果生成后还是没有（比如失败了），则停止
+            if (!state.generatedPrompt) return;
+          } catch (e) {
+            return;
+          }
+      }
+      
+      try {
+        state.generatingCover = true;
+        ElMessage.info("AI正在绘图中，请耐心等待约 15-30 秒...");
+        
+        const response = await aiGenerateImage(state.generatedPrompt);
+        if (response && response.data) {
+          state.previewCoverUrl = response.data;
+          ElMessage.success("封面生成成功，请查看预览");
+        } else {
+          ElMessage.error(response?.message || "生成封面失败");
+        }
+      } catch (error) {
+        // 判断是否是超时错误
+        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+            ElMessage.warning("生成时间较长，请稍后刷新页面或重试");
+        } else {
+            ElMessage.error("生成封面失败，请稍后重试");
+        }
+        console.error("生成封面失败:", error);
+      } finally {
+        state.generatingCover = false;
+      }
+    };
+
+    const setAsCover = async () => {
+      if (!state.previewCoverUrl) return;
+      
+      try {
+        state.settingCover = true;
+        // 1. 转存图片到 COS
+        const response = await uploadImageFromUrl(state.previewCoverUrl);
+        if (response && response.data) {
+          const cosUrl = response.data;
+          // 2. 更新本地显示
+          state.book.picUrl = cosUrl;
+          // 3. 更新数据库
+          await updateBook(state.book.id, {
+             ...state.book, 
+             bookId: state.book.id,
+             picUrl: cosUrl 
+          });
+          ElMessage.success("已成功设置为封面");
+          state.previewCoverUrl = ''; // 清除预览，因为已经应用了
+        } else {
+          ElMessage.error("封面设置失败");
+        }
+      } catch (error) {
+        console.error("设置封面失败:", error);
+        ElMessage.error("设置封面失败");
+      } finally {
+        state.settingCover = false;
       }
     };
 
@@ -200,6 +372,11 @@ export default {
       categoryChange,
       saveBook,
       getImageUrl,
+      generateCoverPrompt,
+      generateCover,
+      setAsCover,
+      MagicStick,
+      Picture,
     };
   },
 };

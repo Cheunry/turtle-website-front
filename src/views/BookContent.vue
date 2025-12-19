@@ -114,8 +114,8 @@
                   v-if="data.bookContent"
                   id="showReading"
                   class="readBox"
-                  style="font-size: 16px; font-family: microsoft yahei;white-space:break-spaces"
-                  v-html="data.bookContent"
+                  style="font-size: 16px; font-family: microsoft yahei;"
+                  v-html="renderedContent"
                 ></div>
                 <div v-else class="empty-content-tip">
                   <p class="tip-text">该章节暂无内容</p>
@@ -275,7 +275,7 @@
 <script>
 import "@/assets/styles/book.css";
 import "@/assets/styles/read.css";
-import { reactive, toRefs, onMounted, onBeforeUnmount, onUnmounted } from "vue";
+import { reactive, toRefs, onMounted, onBeforeUnmount, onUnmounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { getBookContent, getPreChapterId, getNextChapterId } from "@/api/book";
 import { getUid } from "@/utils/auth";
@@ -283,6 +283,7 @@ import { updateBookshelfProcess } from "@/api/user";
 import { ElMessage } from "element-plus";
 import Top from "@/components/common/Top";
 import Footer from "@/components/common/Footer";
+import { renderMarkdown } from "@/utils/markdown";
 export default {
   name: "bookContent",
   components: {
@@ -295,6 +296,14 @@ export default {
     const state = reactive({
       data: {},
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
+    });
+
+    // 计算属性：将 Markdown 内容渲染为 HTML
+    const renderedContent = computed(() => {
+      if (!state.data.bookContent) {
+        return '';
+      }
+      return renderMarkdown(state.data.bookContent);
     });
     onMounted(() => {
       // 从路由参数获取 bookId 和 chapterNum
@@ -474,6 +483,7 @@ export default {
 
     return {
       ...toRefs(state),
+      renderedContent,
       bookDetail,
       chapterList,
       preChapter,
@@ -817,10 +827,30 @@ body,
   word-wrap: break-word;
   word-break: break-word;
 }
-.readBox p {
+/* Markdown 渲染后的段落样式 */
+.readBox :deep(p) {
   line-height: 2;
   margin-top: 1em;
+  margin-bottom: 0.5em;
   text-indent: 2em;
+}
+
+/* 确保段落首行缩进 */
+.readBox :deep(> *) {
+  text-indent: 2em;
+}
+/* 标题、列表等不需要缩进 */
+.readBox :deep(h1),
+.readBox :deep(h2),
+.readBox :deep(h3),
+.readBox :deep(h4),
+.readBox :deep(h5),
+.readBox :deep(h6),
+.readBox :deep(ul),
+.readBox :deep(ol),
+.readBox :deep(blockquote),
+.readBox :deep(pre) {
+  text-indent: 0;
 }
 .orderBox {
   width: 90%;

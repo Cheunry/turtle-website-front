@@ -33,25 +33,28 @@ export function publishChapter(bookId,params) {
 }
 
 export function aiGenerate(action,params) {
-    const formData = new FormData();
-    Object.keys(params).forEach(key => {
-        formData.append(key, params[key]);
-    });
-    return request.post(`/author/ai/${action}`, formData, {
-        // FormData 会自动设置 Content-Type 为 multipart/form-data，不需要手动设置
+    // 修改为发送 JSON 格式，适配后端 @RequestBody
+    return request.post(`/front/ai/${action}`, params, {
         timeout: 60000
-      });
+    });
 }
 
-export function deleteChapter(bookId, chapterNum) {
-    return request.post(`/author/book/chapter/delete/${bookId}/${chapterNum}`);
+// 新增：AI生成图片接口（使用FormData格式或查询参数）
+export function aiGenerateImage(prompt) {
+    return request.post(`/front/ai/generate-image`, null, {
+        params: { prompt },
+        timeout: 60000
+    });
 }
-
 
 export function getChapter(bookId, chapterNum) {
     return request.get(`/author/book/chapter/${bookId}/${chapterNum}`);
 }
 
 export function updateChapter(bookId, chapterNum, params) {
-    return request.put(`/author/book/chapter_update/${bookId}/${chapterNum}`,params);
+    return request.put(`/author/book/chapter_update/${bookId}/${chapterNum}`, params);
+}
+
+export function deleteChapter(bookId, chapterNum) {
+    return request.post(`/author/book/chapter/delete/${bookId}/${chapterNum}`);
 }

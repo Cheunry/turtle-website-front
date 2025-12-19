@@ -5,9 +5,12 @@ export function getImgVerifyCode() {
 }
 
 export function uploadImage(params) {
-  return request.post('/front/resource/image', params, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
+    return request.post('/front/resource/image', params);
+}
+
+// 新增：图片URL转存接口
+export function uploadImageFromUrl(url) {
+    return request.post('/front/resource/image/url', null, {
+        params: { url }
+    });
 }
