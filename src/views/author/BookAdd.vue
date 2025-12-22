@@ -69,65 +69,7 @@
                       class="s_input"
                     />
                   </li>
-                  <b>小说封面：</b>
-                  <li style="position: relative">
-                    <div style="display: flex; align-items: flex-start; gap: 15px;">
-                      <!-- 使用裁剪组件，设置比例为 3:4 -->
-                      <ImageCropper 
-                        :fixedNumber="[3, 4]" 
-                        :limitSize="10"
-                        title="上传封面" 
-                        @uploaded="handleAvatarSuccess"
-                      >
-                        <template #trigger>
-                          <div class="avatar-uploader">
-                            <img
-                              :src="book.picUrl ? getImageUrl(book.picUrl, imgBaseUrl) : picUpload"
-                              class="avatar"
-                              style="width: 120px; height: 160px; object-fit: cover;" 
-                            />
-                          </div>
-                        </template>
-                      </ImageCropper>
-                      <div style="flex: 1;">
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                          <el-button 
-                            type="primary" 
-                            size="small" 
-                            @click="generateCoverPrompt"
-                            :loading="generatingPrompt"
-                            :disabled="!book.bookName || !book.bookDesc"
-                          >
-                            <el-icon v-if="!generatingPrompt"><MagicStick /></el-icon>
-                            {{ generatingPrompt ? '生成中...' : 'AI生成提示词' }}
-                          </el-button>
-                          <el-button 
-                            type="success" 
-                            size="small" 
-                            @click="generateCover"
-                            :loading="generatingCover"
-                            :disabled="!generatedPrompt"
-                          >
-                            <el-icon v-if="!generatingCover"><Picture /></el-icon>
-                            {{ generatingCover ? '生成中...' : '一键生成封面' }}
-                          </el-button>
-                        </div>
-                        <!-- 封面提示词输入框 -->
-                        <div v-if="generatedPrompt" style="margin-top: 15px;">
-                          <div style="margin-bottom: 8px; font-size: 14px; color: #333;">
-                            <b>封面提示词：</b>
-                          </div>
-                          <el-input
-                            v-model="generatedPrompt"
-                            type="textarea"
-                            :rows="6"
-                            placeholder="生成的提示词将显示在这里，您可以编辑"
-                            style="width: 100%;"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </li>
+                  
                   <b>小说介绍：</b>
 
                   <li>
@@ -141,12 +83,28 @@
                     ></textarea>
                   </li>
 
+                  <b>状态：</b>
+                  <li>
+                    <el-radio-group v-model="book.bookStatus">
+                        <el-radio :label="0">连载中</el-radio>
+                        <el-radio :label="1">已完结</el-radio>
+                    </el-radio-group>
+                  </li>
+
+                  <b>收费模式：</b>
+                  <li>
+                    <el-radio-group v-model="book.isVip">
+                        <el-radio :label="0">免费</el-radio>
+                        <el-radio :label="1">收费</el-radio>
+                    </el-radio-group>
+                  </li>
+
                   <li>
                     <input
                       type="button"
                       @click="saveBook"
                       name="btnRegister"
-                      :value="submitting ? '提交中...' : '提交'"
+                      :value="submitting ? '提交中...' : '下一步（设置封面）'"
                       id="btnRegister"
                       class="btn_red"
                       :disabled="submitting"
@@ -157,37 +115,6 @@
               </div>
             </form>
           </div>
-          <!--<div id="divData" class="updateTable">
-                    <table cellpadding="0" cellspacing="0">
-                        <thead>
-                        <tr>
-
-                            <th class="name">
-                                爬虫源（已开启的爬虫源）
-                            </th>
-                            <th class="chapter">
-                                成功爬取数量（websocket实现）
-                            </th>
-                            <th class="time">
-                            目标爬取数量
-                            </th>
-                            <th class="goread">
-                                状态（正在运行，已停止）（一次只能运行一个爬虫源）
-                            </th>
-                            <th class="goread">
-                                操作（启动，停止）
-                            </th>
-                        </tr>
-                        </thead>
-                        <tbody id="bookShelfList">
-
-
-
-                        </tbody>
-                    </table>
-                    <div class="pageBox cf" id="shellPage">
-                    </div>
-                </div>-->
         </div>
       </div>
     </div>
@@ -199,47 +126,32 @@ import "@/assets/styles/book.css";
 import { reactive, toRefs, onMounted, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
-import { publishBook, aiGenerate } from "@/api/author";
+import { publishBook } from "@/api/author";
 import { listCategorys } from "@/api/book";
-import { getImageUrl } from "@/utils/index";
 import AuthorHeader from "@/components/author/Header.vue";
-import picUpload from "@/assets/images/pic_upload.png";
-import ImageCropper from "@/components/common/ImageCropper"; // 引入组件
-import { ElAlert } from "element-plus";
-import { MagicStick, Picture } from "@element-plus/icons-vue";
+import { ElAlert, ElRadioGroup, ElRadio } from "element-plus";
 
 export default {
   name: "authorBookAdd",
   components: {
     AuthorHeader,
-    ImageCropper, // 注册
-    ElAlert
+    ElAlert,
+    ElRadioGroup,
+    ElRadio
   },
   setup() {
     const route = useRoute();
     const router = useRouter();
 
     const state = reactive({
-      book: {'workDirection' : 0,'isVip':0},
+      book: {'workDirection' : 0,'isVip':0, 'bookStatus': 0},
       bookCategorys: [],
-      baseUrl: process.env.VUE_APP_BASE_API_URL,
-      imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
       submitting: false, // 提交状态
-      generatingPrompt: false, // 生成提示词状态
-      generatedPrompt: '', // 生成的提示词
-      generatingCover: false, // 生成封面状态
     });
 
     onMounted(() => {
       loadCategoryList()
     })
-
-    // 移除 beforeAvatarUpload
-
-    // 修改 onSuccess
-    const handleAvatarSuccess = (url) => {
-      state.book.picUrl = url;
-    };
 
     const loadCategoryList = async () => {
       const { data } = await listCategorys({ workDirection: state.book.workDirection });
@@ -258,59 +170,6 @@ export default {
       });
     }
 
-    const generateCoverPrompt = async () => {
-      if (!state.book.bookName) {
-        ElMessage.warning("请先填写小说名");
-        return;
-      }
-      if (!state.book.bookDesc) {
-        ElMessage.warning("请先填写小说简介");
-        return;
-      }
-      
-      try {
-        state.generatingPrompt = true;
-        const params = {
-          bookName: state.book.bookName,
-          categoryName: state.book.categoryName || '',
-          bookDesc: state.book.bookDesc
-        };
-        const response = await aiGenerate('cover-prompt', params);
-        console.log("封面提示词响应:", response);
-        // 响应拦截器已处理错误，这里直接检查 data
-        if (response && response.data) {
-          state.generatedPrompt = response.data;
-          ElMessage.success("提示词生成成功");
-        } else {
-          console.warn("响应数据异常:", response);
-          ElMessage.error(response?.message || "生成提示词失败，响应数据为空");
-        }
-      } catch (error) {
-        ElMessage.error("生成提示词失败，请稍后重试");
-        console.error("生成封面提示词失败:", error);
-      } finally {
-        state.generatingPrompt = false;
-      }
-    };
-
-    const generateCover = async () => {
-      if (!state.generatedPrompt) {
-        ElMessage.warning("请先生成封面提示词");
-        return;
-      }
-      
-      try {
-        state.generatingCover = true;
-        // TODO: 调用AI图片生成接口
-        // 这里需要根据实际的AI图片生成接口来实现
-        ElMessage.info("封面生成功能开发中，敬请期待");
-      } catch (error) {
-        ElMessage.error("生成封面失败，请稍后重试");
-        console.error("生成封面失败:", error);
-      } finally {
-        state.generatingCover = false;
-      }
-    };
 
     const saveBook = async () => {
       // 防止重复提交
@@ -323,18 +182,15 @@ export default {
         ElMessage.error("书名不能为空！");
         return;
       }
-      if (!state.book.picUrl) {
-        ElMessage.error("封面不能为空！");
-        return;
-      }
       if (!state.book.bookDesc) {
         ElMessage.error("简介不能为空！");
         return;
       }
       try {
         state.submitting = true;
+        // 封面字段由后端填充默认值
         await publishBook(state.book)
-        ElMessage.success("您的小说基本信息已提交成功，请等待审核");
+        ElMessage.success("您的小说基本信息已提交成功，请前往列表页上传封面");
         // 延迟跳转，确保用户看到提示消息
         setTimeout(() => {
           router.push({'name':'authorBookList'})
@@ -348,16 +204,9 @@ export default {
 
     return {
       ...toRefs(state),
-      picUpload,
-      handleAvatarSuccess,
       loadCategoryList,
       categoryChange,
       saveBook,
-      getImageUrl,
-      generateCoverPrompt,
-      generateCover,
-      MagicStick,
-      Picture,
     };
   },
 };
@@ -385,33 +234,6 @@ export default {
 }
 a.redBtn:hover {
   color: #fff;
-}
-
-.avatar-uploader .avatar {
-  width: 178px;
-  height: 178px;
-  display: block;
-}
-
-.avatar-uploader .el-upload {
-  border: 1px dashed var(--el-border-color);
-  border-radius: 6px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: var(--el-transition-duration-fast);
-}
-
-.avatar-uploader .el-upload:hover {
-  border-color: var(--el-color-primary);
-}
-
-.el-icon.avatar-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
-  width: 178px;
-  height: 178px;
-  text-align: center;
 }
 
 .updateTable .style a {
