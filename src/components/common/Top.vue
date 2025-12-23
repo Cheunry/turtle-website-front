@@ -32,7 +32,12 @@
         </span>
         <span v-if="token" class="user_link"
           ><!--<i class="line mr20">|</i
-          >--><router-link :to="{name:'userSetup'}" class="mr15">{{ nickName }}</router-link>
+          >-->
+          <router-link :to="{ name: 'userMessage' }" class="mr15 message-link" style="position: relative;">
+            信箱
+            <span v-if="unreadCount > 0" class="badge-count">{{ unreadCount }}</span>
+          </router-link>
+          <router-link :to="{name:'userSetup'}" class="mr15">{{ nickName }}</router-link>
           <a @click="logout" href="javascript:void(0)">退出</a></span
         >
       </div>
@@ -42,9 +47,10 @@
 
 <script>
 import logo from "@/assets/images/logo.png";
-import { reactive, toRefs, onMounted } from "vue";
+import { reactive, toRefs, onMounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { getToken, getNickName, removeToken, removeNickName,removeUid } from "@/utils/auth";
+import { countUnreadMessages } from "@/api/user";
 export default {
   name: "Top",
   setup(props, context) {
@@ -52,12 +58,24 @@ export default {
       keyword: "",
       nickName: getNickName(),
       token: getToken(),
+      unreadCount: 0,
     });
-    state.nickName = getNickName();
-    state.token = getToken();
+    
     const route = useRoute();
     const router = useRouter();
     state.keyword = route.query.key;
+
+    const loadUnreadCount = async () => {
+        if (state.token) {
+            try {
+                const { data } = await countUnreadMessages();
+                state.unreadCount = data || 0;
+            } catch (error) {
+                console.error("Failed to load unread messages count", error);
+            }
+        }
+    };
+
     const searchByK = () => {
       router.push({ path: "/bookclass", query: { key: state.keyword } });
       context.emit("eventSerch", state.keyword);
@@ -68,7 +86,29 @@ export default {
       removeUid()
       state.nickName = "";
       state.token = "";
+      state.unreadCount = 0;
+      router.push({ name: 'home' });
     };
+
+    // 监听 localStorage 变化（注意：storage 事件只在不同窗口间触发，同窗口需手动更新）
+    // 这里简单处理：使用 setInterval 或者 event bus。
+    // 更推荐使用 Vuex/Pinia 状态管理，这里为了改动最小，每次路由变化重新获取一下
+    router.afterEach(() => {
+        state.nickName = getNickName();
+        state.token = getToken();
+        loadUnreadCount();
+    })
+
+    onMounted(() => {
+        window.addEventListener('nickname-updated', () => {
+            state.nickName = getNickName();
+        });
+        window.addEventListener('message-status-changed', () => {
+            loadUnreadCount();
+        });
+        loadUnreadCount();
+    });
+
     return {
       ...toRefs(state),
       logo,
@@ -78,3 +118,23 @@ export default {
   },
 };
 </script>
+
+<style scoped>
+.badge-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #f56c6c;
+  color: white;
+  border-radius: 10px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 14px;
+  min-width: 14px;
+  text-align: center;
+  border: 1px solid #fff;
+}
+.message-link {
+    margin-right: 25px !important; /* 给badge留点空间 */
+}
+</style>

@@ -58,3 +58,36 @@ export function updateChapter(bookId, chapterNum, params) {
 export function deleteChapter(bookId, chapterNum) {
     return request.post(`/author/book/chapter/delete/${bookId}/${chapterNum}`);
 }
+
+// === Message API ===
+export function listAuthorMessages(params) {
+    return request.post('/author/message/list', params);
+}
+
+export function readAuthorMessage(id) {
+    return request.put(`/author/message/read/${id}`);
+}
+
+export function deleteAuthorMessage(id) {
+    return request.delete(`/author/message/${id}`);
+}
+
+export function batchReadAuthorMessages(ids) {
+    return request.put('/author/message/batch_read', ids);
+}
+
+export function batchDeleteAuthorMessages(ids) {
+    return request.post('/author/message/batch_delete', ids);
+}
+
+export function allReadAuthorMessages() {
+    return request.put('/author/message/all_read');
+}
+
+export function allDeleteAuthorMessages() {
+    return request.post('/author/message/all_delete');
+}
+
+export function getAuthorUnReadCount() {
+    return request.get('/author/message/unread_count');
+}

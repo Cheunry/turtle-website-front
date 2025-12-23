@@ -4,8 +4,12 @@
     <div class="userBox cf">
       <div class="my_l">
         <ul class="log_list">
-          <li>            <router-link class="link_4 on" :to="{'name':'authorBookList'}">小说管理</router-link>
-</li>
+          <li>
+            <router-link class="link_4 on" :to="{'name':'authorBookList'}">小说管理</router-link>
+          </li>
+          <li>
+            <router-link class="link_1" :to="{ name: 'authorMessage' }">作家信箱</router-link>
+          </li>
         </ul>
       </div>
       <div class="my_r">

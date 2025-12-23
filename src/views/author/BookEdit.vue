@@ -45,7 +45,13 @@
                 </li>
                 <b>小说名：</b>
                 <li>
-                  <input v-model="book.bookName" type="text" class="s_input" />
+                  <input 
+                    v-model="book.bookName" 
+                    type="text" 
+                    class="s_input" 
+                    :disabled="generatingPrompt || generatingCover"
+                    :style="{ opacity: (generatingPrompt || generatingCover) ? 0.6 : 1, cursor: (generatingPrompt || generatingCover) ? 'not-allowed' : 'text' }"
+                  />
                 </li>
                 <b>小说封面：</b>
                 <li style="position: relative">
@@ -64,7 +70,7 @@
                           size="small" 
                           @click="generateCoverPrompt"
                           :loading="generatingPrompt"
-                          :disabled="!book.bookName || !book.bookDesc"
+                          :disabled="!book.bookName || !book.bookDesc || generatingCover"
                         >
                           <el-icon v-if="!generatingPrompt"><MagicStick /></el-icon>
                           {{ generatingPrompt ? '生成中...' : 'AI生成提示词' }}
@@ -74,6 +80,7 @@
                           size="small" 
                           @click="generateCover"
                           :loading="generatingCover"
+                          :disabled="generatingPrompt"
                         >
                           <el-icon v-if="!generatingCover"><Picture /></el-icon>
                           {{ generatingCover ? 'AI正在绘图中(约30s)...' : '一键生成封面' }}
@@ -90,7 +97,22 @@
                           :rows="4"
                           placeholder="生成的提示词将显示在这里，您可以编辑"
                           style="width: 100%;"
+                          :disabled="generatingPrompt || generatingCover"
                         />
+                        <!-- 生成中的提示 -->
+                        <el-alert
+                          v-if="generatingPrompt || generatingCover"
+                          :type="generatingPrompt ? 'info' : 'warning'"
+                          :closable="false"
+                          show-icon
+                          style="margin-top: 10px;"
+                        >
+                          <template #title>
+                            <span style="font-size: 13px;">
+                              {{ generatingPrompt ? '正在生成提示词，请稍候...' : 'AI正在绘图中，请耐心等待约15-30秒，期间请勿操作...' }}
+                            </span>
+                          </template>
+                        </el-alert>
                       </div>
                       
                       <!-- 封面预览区域 -->
@@ -105,6 +127,7 @@
                               type="success" 
                               @click="setAsCover" 
                               :loading="settingCover"
+                              :disabled="generatingPrompt || generatingCover"
                             >
                               使用此封面
                             </el-button>
@@ -126,7 +149,15 @@
                 </li>
                 <b>小说介绍：</b>
                 <li>
-                  <textarea v-model="book.bookDesc" rows="5" cols="106" class="textarea" id="bookDesc"></textarea>
+                  <textarea 
+                    v-model="book.bookDesc" 
+                    rows="5" 
+                    cols="106" 
+                    class="textarea" 
+                    id="bookDesc"
+                    :disabled="generatingPrompt || generatingCover"
+                    :style="{ opacity: (generatingPrompt || generatingCover) ? 0.6 : 1, cursor: (generatingPrompt || generatingCover) ? 'not-allowed' : 'text' }"
+                  ></textarea>
                 </li>
                 <li>
                   <input 
@@ -134,8 +165,8 @@
                     @click="saveBook" 
                     :value="submitting ? '提交中...' : '保存修改'" 
                     class="btn_red"
-                    :disabled="submitting"
-                    :style="{ opacity: submitting ? 0.6 : 1, cursor: submitting ? 'not-allowed' : 'pointer' }"
+                    :disabled="submitting || generatingPrompt || generatingCover"
+                    :style="{ opacity: (submitting || generatingPrompt || generatingCover) ? 0.6 : 1, cursor: (submitting || generatingPrompt || generatingCover) ? 'not-allowed' : 'pointer' }"
                   />
                 </li>
               </ul>
@@ -230,8 +261,15 @@ export default {
         return;
       }
       
+      // 如果正在生成封面，不允许生成提示词
+      if (state.generatingCover) {
+        ElMessage.warning("AI正在生成封面中，请稍候...");
+        return;
+      }
+      
       try {
         state.generatingPrompt = true;
+        ElMessage.info("正在生成提示词，请稍候...");
         const params = {
           id: state.book.id,
           bookName: state.book.bookName,
@@ -257,6 +295,12 @@ export default {
     };
 
     const generateCover = async () => {
+      // 如果正在生成提示词，不允许生成封面
+      if (state.generatingPrompt) {
+        ElMessage.warning("正在生成提示词中，请稍候...");
+        return;
+      }
+      
       // 如果没有提示词，先尝试自动生成提示词
       if (!state.generatedPrompt) {
           // 检查必要信息
@@ -277,7 +321,7 @@ export default {
       
       try {
         state.generatingCover = true;
-        ElMessage.info("AI正在绘图中，请耐心等待约 15-30 秒...");
+        ElMessage.info("AI正在绘图中，请耐心等待约 15-30 秒，期间请勿操作...");
         
         const response = await aiGenerateImage(state.generatedPrompt);
         if (response && response.data) {
@@ -332,6 +376,12 @@ export default {
     const saveBook = async () => {
       // 防止重复提交
       if (state.submitting) {
+        return;
+      }
+      
+      // 如果正在生成提示词或封面，不允许提交
+      if (state.generatingPrompt || state.generatingCover) {
+        ElMessage.warning("AI正在处理中，请稍候再提交...");
         return;
       }
 

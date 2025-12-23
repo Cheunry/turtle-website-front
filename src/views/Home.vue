@@ -137,7 +137,7 @@
           >
             <a class="items_img" href="javascript:void(0)" @click="bookDetail(item.bookId)">
               <img
-                :src="`${imgBaseUrl}` + `${item.picUrl}`"
+                :src="getImageUrl(item.picUrl, imgBaseUrl)"
                 onerror="this.src='default.gif';this.onerror=null"
                 :alt="item.bookName"
               />
@@ -175,7 +175,7 @@
           >
             <a class="items_img" href="javascript:void(0)" @click="bookDetail(item.bookId)">
               <img
-                :src="`${imgBaseUrl}` + `${item.picUrl}`"
+                :src="getImageUrl(item.picUrl, imgBaseUrl)"
                 onerror="this.src='default.gif';this.onerror=null"
               />
             </a>

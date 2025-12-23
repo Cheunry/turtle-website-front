@@ -73,10 +73,9 @@ const router = createRouter({
       component: () => import('@/views/UserSetup')
     },
     {
-      path: '/user/comment',
-      name: 'userComment',
-      component: () => import('@/views/UserComment')
-	   
+      path: '/user/message',
+      name: 'userMessage',
+      component: () => import('@/views/UserMessage')
     },
     {
       path: '/author/register',
@@ -112,6 +111,11 @@ const router = createRouter({
       path: '/author/chapter_update',
       name: 'authorChapterUpdate',
       component: () => import('@/views/author/ChapterUpdate')
+    },
+    {
+      path: '/author/message',
+      name: 'authorMessage',
+      component: () => import('@/views/author/Message')
     }
   ]
 })

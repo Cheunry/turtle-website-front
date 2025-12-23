@@ -23,7 +23,8 @@ export const removeNickName = () =>  {
 }
 
 export const setNickName = (nickName) => {
-  return localStorage.setItem(nickNameKey, nickName)
+  localStorage.setItem(nickNameKey, nickName);
+  window.dispatchEvent(new Event('nickname-updated'));
 }
 
 export const getNickName = () => {
