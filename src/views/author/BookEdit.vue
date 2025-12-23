@@ -183,7 +183,7 @@ import "@/assets/styles/book.css";
 import { reactive, toRefs, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
-import { updateBook, aiGenerate, aiGenerateImage } from "@/api/author";
+import { updateBook, aiCover, aiCoverPrompt } from "@/api/author";
 import { uploadImageFromUrl } from "@/api/resource";
 import { getBookById, listCategorys } from "@/api/book";
 import { getImageUrl } from "@/utils/index";
@@ -270,18 +270,21 @@ export default {
       try {
         state.generatingPrompt = true;
         ElMessage.info("正在生成提示词，请稍候...");
+        // 使用 aiCoverPrompt API 仅生成提示词（不扣积分）
         const params = {
           id: state.book.id,
           bookName: state.book.bookName,
           categoryName: state.book.categoryName || '',
           bookDesc: state.book.bookDesc
         };
-        const response = await aiGenerate('cover-prompt', params);
+        const response = await aiCoverPrompt(params);
         console.log("封面提示词响应:", response);
         // 响应拦截器已处理错误，这里直接检查 data
         if (response && response.data) {
+          // 返回的是提示词字符串
           state.generatedPrompt = response.data;
           ElMessage.success("提示词生成成功");
+          // 注意：生成提示词不扣积分，所以不需要触发积分更新事件
         } else {
           console.warn("响应数据异常:", response);
           ElMessage.error(response?.message || "生成提示词失败，响应数据为空");
@@ -323,9 +326,33 @@ export default {
         state.generatingCover = true;
         ElMessage.info("AI正在绘图中，请耐心等待约 15-30 秒，期间请勿操作...");
         
-        const response = await aiGenerateImage(state.generatedPrompt);
+        // 使用 aiCover API 生成封面（已集成积分扣除）
+        const params = {
+          relatedId: state.book.id,
+          relatedDesc: state.book.bookName,
+          bookName: state.book.bookName,
+          categoryName: state.book.categoryName || '',
+          bookDesc: state.book.bookDesc,
+          prompt: state.generatedPrompt, // 使用生成的提示词
+          consumePoints: 0 // 后端会自动计算并扣除
+        };
+        
+        const response = await aiCover(params);
+        
+        // 触发积分更新事件
+        window.dispatchEvent(new Event('author-points-changed'));
+        
         if (response && response.data) {
-          state.previewCoverUrl = response.data;
+          // 如果返回的是图片URL字符串
+          if (typeof response.data === 'string') {
+            state.previewCoverUrl = response.data;
+          } else if (response.data.imageUrl) {
+            state.previewCoverUrl = response.data.imageUrl;
+          } else if (response.data.url) {
+            state.previewCoverUrl = response.data.url;
+          } else {
+            state.previewCoverUrl = response.data;
+          }
           ElMessage.success("封面生成成功，请查看预览");
         } else {
           ElMessage.error(response?.message || "生成封面失败");

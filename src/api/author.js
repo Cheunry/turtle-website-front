@@ -16,35 +16,12 @@ export function publishBook(params) {
     return request.post('/author/book', params);
 }
 
-export function updateBook(bookId, params) {
-    return request.put(`/author/book/${bookId}`, params);
-}
-
-export function deleteBook(bookId) {
-    return request.delete(`/author/book/${bookId}`);
-}
-
 export function listChapters(bookId, params) {
     return request.get(`/author/book/chapters/${bookId}`, { params });
 }
 
 export function publishChapter(bookId,params) {
     return request.post(`/author/book/chapter/${bookId}`, params);
-}
-
-export function aiGenerate(action,params) {
-    // 修改为发送 JSON 格式，适配后端 @RequestBody
-    return request.post(`/front/ai/${action}`, params, {
-        timeout: 60000
-    });
-}
-
-// 新增：AI生成图片接口（使用FormData格式或查询参数）
-export function aiGenerateImage(prompt) {
-    return request.post(`/front/ai/generate-image`, null, {
-        params: { prompt },
-        timeout: 60000
-    });
 }
 
 export function getChapter(bookId, chapterNum) {
@@ -59,35 +36,72 @@ export function deleteChapter(bookId, chapterNum) {
     return request.post(`/author/book/chapter/delete/${bookId}/${chapterNum}`);
 }
 
-// === Message API ===
+export function deleteBook(bookId) {
+    return request.delete(`/author/book/${bookId}`);
+}
+
+export function updateBook(bookId, params) {
+    return request.put(`/author/book/${bookId}`, params);
+}
+
+// 获取作家未读消息数量
+export function getAuthorUnReadCount() {
+    return request.get('/author/message/unread_count');
+}
+
+// 获取作家消息列表
 export function listAuthorMessages(params) {
     return request.post('/author/message/list', params);
 }
 
+// 标记消息已读
 export function readAuthorMessage(id) {
     return request.put(`/author/message/read/${id}`);
 }
 
+// 删除消息
 export function deleteAuthorMessage(id) {
     return request.delete(`/author/message/${id}`);
 }
 
+// 批量标记已读
 export function batchReadAuthorMessages(ids) {
     return request.put('/author/message/batch_read', ids);
 }
 
+// 批量删除
 export function batchDeleteAuthorMessages(ids) {
     return request.post('/author/message/batch_delete', ids);
 }
 
+// 全部标记已读
 export function allReadAuthorMessages() {
     return request.put('/author/message/all_read');
 }
 
+// 全部删除
 export function allDeleteAuthorMessages() {
     return request.post('/author/message/all_delete');
 }
 
-export function getAuthorUnReadCount() {
-    return request.get('/author/message/unread_count');
+/* ***************** AI 服务接口 ***************** */
+
+// AI 审核 (含扣分逻辑)
+export function aiAudit(params) {
+    return request.post('/author/ai/audit', params, { timeout: 60000 });
+}
+
+// AI 润色 (含扣分逻辑)
+export function aiPolish(params) {
+    return request.post('/author/ai/polish', params, { timeout: 60000 });
+}
+
+// AI 封面生成 (含扣分逻辑)
+export function aiCover(params) {
+    return request.post('/author/ai/cover', params, { timeout: 60000 });
+}
+
+// AI 封面提示词生成 (不扣分，仅生成提示词)
+export function aiCoverPrompt(params) {
+    return request.post('/author/ai/cover-prompt', params, { timeout: 30000 });
 }

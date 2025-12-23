@@ -111,12 +111,17 @@
                           </el-input>
                         </div>
 
+                        <div style="margin-top: 20px; padding: 10px; background-color: #fdf6ec; color: #e6a23c; font-size: 12px; border-radius: 4px;">
+                            <i class="el-icon-warning"></i>
+                            本次操作将消耗 <strong>10</strong> 积分（优先扣除每日免费积分）
+                        </div>
+
                         <template #footer>
                           <el-button @click="dialogVisible = false"
                             >取消</el-button
                           >
                           <el-button type="primary" @click="confirmParams"
-                            >确定</el-button
+                            >确定并扣费</el-button
                           >
                         </template>
                       </el-dialog>
@@ -221,12 +226,17 @@
                           </el-input>
                         </div>
 
+                        <div style="margin-top: 20px; padding: 10px; background-color: #fdf6ec; color: #e6a23c; font-size: 12px; border-radius: 4px;">
+                            <i class="el-icon-warning"></i>
+                            本次操作将消耗 <strong>10</strong> 积分（优先扣除每日免费积分）
+                        </div>
+
                         <template #footer>
                           <el-button @click="dialogVisible = false"
                             >取消</el-button
                           >
                           <el-button type="primary" @click="confirmParams"
-                            >确定</el-button
+                            >确定并扣费</el-button
                           >
                         </template>
                       </el-dialog>
@@ -297,6 +307,12 @@
                                 placeholder="请输入润色要求"
                               />
                             </div>
+                            
+                            <div style="margin-top: 10px; padding: 10px; background-color: #fdf6ec; color: #e6a23c; font-size: 12px; border-radius: 4px;">
+                                <i class="el-icon-warning"></i>
+                                本次润色将消耗 <strong>10</strong> 积分（优先扣除每日免费积分）
+                            </div>
+
                             <div class="form-actions">
                               <el-button 
                                 type="primary" 
@@ -304,7 +320,7 @@
                                 :loading="generating"
                                 style="width: 100%"
                               >
-                                {{ generating ? '润色中...' : '开始润色' }}
+                                {{ generating ? '润色中...' : '开始润色并扣费' }}
                               </el-button>
                             </div>
                           </div>
@@ -412,7 +428,7 @@ import "@/assets/styles/book.css";
 import { reactive, toRefs, computed, ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
-import { publishChapter, aiGenerate } from "@/api/author";
+import { publishChapter, aiAudit, aiPolish } from "@/api/author";
 import AuthorHeader from "@/components/author/Header.vue";
 import { renderMarkdown } from "@/utils/markdown";
 
@@ -436,9 +452,7 @@ export default {
       isFullscreen: false,
       submitting: false, // 提交状态
       aiButtons: [
-        { label: "AI扩写", action: "expand", type: "primary" },
-        { label: "AI缩写", action: "condense", type: "success" },
-        { label: "AI续写", action: "continue", type: "warning" },
+        { label: "AI预审", action: "audit", type: "primary" },
         { label: "AI润色", action: "polish", type: "danger" },
       ],
       dialogVisible: false,
@@ -486,8 +500,9 @@ export default {
 
     const openDialog = (action) => {
       state.currentAction = action
-      // 润色不需要参数
       if (action === 'polish') {
+        handleAI(action)
+      } else if (action === 'audit') {
         handleAI(action)
       } else {
         state.dialogVisible = true
@@ -584,8 +599,17 @@ export default {
         state.polishSelectionEnd = state.chapter.content.length;
       }
       
+      // 审核功能使用全文
+      if (action === 'audit') {
+         if (!state.chapter.content || state.chapter.content.trim().length === 0) {
+          ElMessage.warning("请先输入章节内容");
+          return;
+        }
+        state.selectedText = state.chapter.content;
+      }
+      
       // 其他功能需要选中文本
-      if (!state.hasSelection && action !== 'polish') {
+      if (!state.hasSelection && action !== 'polish' && action !== 'audit') {
         ElMessage.warning("请先选中要处理的文本");
         return;
       }
@@ -647,71 +671,71 @@ export default {
       try {
         state.generating = true
         
+        // 构建请求参数，符合 AuthorPointsConsumeReqDto 结构
+        // 注意：对于新增章节，还没有章节ID，所以使用 bookId 作为 relatedId
+        // 这样可以在积分扣除日志中关联到对应的小说，便于后续排查问题
         const params = {
-          text: state.selectedText || state.chapter.content
+            // relatedId: 关联ID（章节ID或小说ID），用于积分扣除日志记录和问题排查
+            // 新增章节时使用 bookId，编辑章节时如果有章节ID应使用章节ID
+            relatedId: state.bookId ? Number(state.bookId) : null,
+            // relatedDesc: 关联描述（章节名），用于积分扣除日志记录
+            relatedDesc: state.chapter.chapterName || '新章节',
+            // title: 标题（章节名），用于AI服务
+            title: state.chapter.chapterName,
+            // chapterNum: 章节号，用于AI服务
+            chapterNum: state.chapter.chapterNum ? Number(state.chapter.chapterNum) : null,
+            // content: 文本内容，用于AI审核/润色
+            content: state.selectedText || state.chapter.content,
+            // consumePoints: 消费点数，后端会自动覆盖，这里设置为0即可
+            consumePoints: 0
+        };
+
+        if (action === 'audit') {
+            // 调用 AI 审核接口（已集成积分扣除）
+            const { data } = await aiAudit(params);
+            if (data) {
+                const statusMap = { 0: '待审核', 1: '审核通过', 2: '审核不通过' };
+                const msg = `AI审核结果：${statusMap[data.auditStatus]} (置信度: ${data.aiConfidence})\n说明：${data.auditReason}`;
+                if (data.auditStatus === 1) {
+                    ElMessage.success(msg);
+                } else if (data.auditStatus === 2) {
+                    ElMessage.error(msg);
+                } else {
+                    ElMessage.warning(msg);
+                }
+            }
+            // 触发积分更新事件，更新页面上的积分显示
+            window.dispatchEvent(new Event('author-points-changed'));
+            return;
         }
+
         // 润色参数适配
         if (action === 'polish') {
-          params.selectedText = params.text; 
+          // 添加润色相关参数
           params.style = state.polishParams.style; 
           params.requirement = state.polishParams.requirement;
-        }
+          
+          // 调用 AI 润色接口（已集成积分扣除）
+          const response = await aiPolish(params);
+          // 触发积分更新事件，更新页面上的积分显示
+          window.dispatchEvent(new Event('author-points-changed'));
 
-        // 添加参数
-        if (action === 'expand' || action === 'condense') {
-          params.ratio = state.ratio
-        }
-        if (action === 'continue') {
-          params.length = state.length
-        }
-
-        let response;
-        response = await aiGenerate(action, params)
-
-        // 修复：使用正确的响应数据结构
-        let resultText = '';
-        let explanation = '';
-        if (action === 'polish' && response.data) {
-          resultText = response.data.polishedText || response.data;
-          explanation = response.data.explanation || '';
-        } else if (response.data) {
-          resultText = typeof response.data === 'string' ? response.data : response.data.text || '';
-        }
-
-        // 获取当前使用的编辑器
-        const currentEditor = state.isFullscreen ? fullscreenEditor.value : editor.value;
-        
-        if (action === 'polish') {
-          // 润色模式：进入结果展示
-          state.polishedContent = resultText;
-          state.polishExplanation = explanation;
-          state.polishStep = 'result';
-        } else {
-          // 替换选中的文本，而不是追加
-          if (state.hasSelection && currentEditor) {
-            // 对于扩写、缩写、续写，替换选中文本
-            const start = currentEditor.selectionStart;
-            const end = currentEditor.selectionEnd;
-            const beforeText = state.chapter.content.substring(0, start);
-            const afterText = state.chapter.content.substring(end);
-            state.chapter.content = beforeText + resultText + afterText;
-            
-            setTimeout(() => {
-              if (currentEditor) {
-                currentEditor.focus();
-                currentEditor.setSelectionRange(start + resultText.length, start + resultText.length);
-              }
-            }, 0);
+          if (response && response.data) {
+              state.polishedContent = response.data.polishedText || "";
+              state.polishExplanation = response.data.explanation || "";
+              state.polishStep = 'result';
           } else {
-            // 其他情况追加到末尾
-            const newContent = `\n\n【AI生成内容】${resultText}`;
-            await typewriterEffect(newContent);
+              throw new Error("响应数据为空");
           }
-          state.hasSelection = false;
-          state.selectedText = '';
         }
+        
       } catch (error) {
-        ElMessage.error("AI生成失败：" + (error.message || error));
+        // 如果是积分不足，已经在 axios 拦截器处理了，或者在这里捕获
+        if (error.msg && error.msg.includes("余额不足")) {
+             // 拦截器通常会显示错误，这里可以不做额外处理
+        } else {
+             ElMessage.error("AI服务调用失败：" + (error.msg || error.message || error));
+        }
       } finally {
         state.generating = false;
       }
