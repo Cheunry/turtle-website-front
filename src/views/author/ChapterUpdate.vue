@@ -178,7 +178,7 @@
                           v-for="btn in aiButtons"
                           :key="btn.action"
                           :type="btn.type"
-                          :disabled="(btn.action !== 'polish' && !hasSelection) || generating || !chapter.content || isPolishMode"
+                          :disabled="(btn.action !== 'polish' && !hasSelection) || generating || !chapter.content || (isPolishMode && btn.action !== 'polish')"
                           @click="openDialog(btn.action)"
                           size="small"
                         >
@@ -292,6 +292,26 @@
                                 placeholder="请输入润色要求"
                               />
                             </div>
+                            
+                            <div style="margin-top: 10px; padding: 10px; background-color: #fdf6ec; color: #e6a23c; font-size: 12px; border-radius: 4px;">
+                                <i class="el-icon-warning"></i>
+                                本次润色将消耗 <strong>10</strong> 积分（优先扣除每日免费积分）
+                            </div>
+                            
+                            <!-- 积分信息显示 -->
+                            <div v-if="authorPoints.freePoints > 0 || authorPoints.paidPoints > 0" style="margin-top: 10px; padding: 10px; background-color: #f0f9ff; border: 1px solid #b3d8ff; border-radius: 4px; font-size: 12px;">
+                                <div style="color: #409EFF; margin-bottom: 4px;">
+                                    <strong>当前积分：</strong>
+                                    <span>免费 {{ authorPoints.freePoints }}</span>
+                                    <span v-if="authorPoints.paidPoints > 0"> + 永久 {{ authorPoints.paidPoints }}</span>
+                                    <span style="color: #666;">（总计 {{ Number(authorPoints.freePoints || 0) + Number(authorPoints.paidPoints || 0) }}）</span>
+                                </div>
+                                <div style="color: #909399; font-size: 11px;">
+                                    消耗后将剩余：免费 {{ afterPolishPoints.afterFreePoints }}{{ afterPolishPoints.afterPaidPoints > 0 ? ' + 永久 ' + afterPolishPoints.afterPaidPoints : '' }}
+                                    （总计 {{ afterPolishPoints.afterTotal }}）
+                                </div>
+                            </div>
+                            
                             <div class="form-actions">
                               <el-button 
                                 type="primary" 
@@ -299,7 +319,7 @@
                                 :loading="generating"
                                 style="width: 100%"
                               >
-                                {{ generating ? '润色中...' : '开始润色' }}
+                                {{ generating ? '润色中...' : '开始润色并扣费' }}
                               </el-button>
                             </div>
                           </div>
@@ -407,7 +427,7 @@ import "@/assets/styles/book.css";
 import { reactive, toRefs, onMounted, ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
-import { updateChapter, getChapter, aiAudit, aiPolish } from "@/api/author";
+import { updateChapter, getChapter, aiAudit, aiPolish, getAuthorStatus } from "@/api/author";
 import AuthorHeader from "@/components/author/Header.vue";
 import { Loading } from "@element-plus/icons-vue";
 import { renderMarkdown } from "@/utils/markdown";
@@ -461,6 +481,10 @@ export default {
       length: 200,
       showPreview: false, // 普通编辑预览模式开关
       showFullscreenPreview: false, // 全屏编辑预览模式开关
+      authorPoints: {
+        freePoints: 0,
+        paidPoints: 0
+      }
     });
 
     const dialogTitle = computed(() => {
@@ -479,6 +503,23 @@ export default {
         return '';
       }
       return renderMarkdown(state.chapter.content);
+    })
+
+    // 计算消耗后的积分信息
+    const afterPolishPoints = computed(() => {
+      const consumePoints = 10;
+      const freePoints = Number(state.authorPoints.freePoints || 0);
+      const paidPoints = Number(state.authorPoints.paidPoints || 0);
+      const usedFreePoints = Math.min(consumePoints, freePoints);
+      const usedPaidPoints = Math.max(0, consumePoints - freePoints);
+      const afterFreePoints = freePoints - usedFreePoints;
+      const afterPaidPoints = paidPoints - usedPaidPoints;
+      const afterTotal = afterFreePoints + afterPaidPoints;
+      return {
+        afterFreePoints,
+        afterPaidPoints,
+        afterTotal
+      };
     })
 
     const openDialog = (action) => {
@@ -589,6 +630,8 @@ export default {
         state.polishStep = 'config';
         state.polishedContent = "";
         state.polishExplanation = "";
+        // 获取积分信息（用于在配置面板中显示）
+        await fetchAuthorPoints();
         if (!state.isFullscreen) {
           enterFullscreen();
         }
@@ -605,7 +648,47 @@ export default {
       await generateContent(action);
     };
 
+    // 获取作者积分信息
+    const fetchAuthorPoints = async () => {
+      try {
+        const response = await getAuthorStatus();
+        if (response && response.data) {
+          // 确保转换为数字类型，避免字符串拼接问题
+          state.authorPoints.freePoints = Number(response.data.freePoints) || 0;
+          state.authorPoints.paidPoints = Number(response.data.paidPoints) || 0;
+          return true;
+        }
+      } catch (error) {
+        console.error('获取积分信息失败:', error);
+      }
+      return false;
+    };
+
     const startPolish = async () => {
+      // 先获取最新积分信息
+      const pointsFetched = await fetchAuthorPoints();
+      
+      const consumePoints = 10; // AI润色消耗10积分
+      const currentTotal = Number(state.authorPoints.freePoints || 0) + Number(state.authorPoints.paidPoints || 0);
+      const afterTotal = currentTotal - consumePoints;
+      
+      // 只有在成功获取积分信息且积分明显不足时才提示（避免因为获取失败而误判）
+      if (pointsFetched && afterTotal < 0) {
+        ElMessage.error(`积分不足！当前积分：${currentTotal}，需要：${consumePoints}`);
+        return;
+      }
+      
+      // 显示积分提示信息（非阻塞）
+      if (pointsFetched) {
+        const afterFreePoints = Math.max(0, state.authorPoints.freePoints - consumePoints);
+        const afterPaidPoints = state.authorPoints.paidPoints - Math.max(0, consumePoints - state.authorPoints.freePoints);
+        ElMessage.info({
+          message: `当前积分：${state.authorPoints.freePoints}免费 + ${state.authorPoints.paidPoints}永久（总计${currentTotal}），消耗${consumePoints}积分后剩余：${afterFreePoints}免费${afterPaidPoints > 0 ? ' + ' + afterPaidPoints + '永久' : ''}（总计${afterTotal}）`,
+          duration: 4000,
+          showClose: true
+        });
+      }
+      
       // 在开始润色前，再次检查并更新选中位置
       const currentEditor = state.isFullscreen ? fullscreenEditor.value : editor.value;
       if (currentEditor) {
@@ -847,6 +930,7 @@ export default {
       cancelPolish,
       startPolish,
       insertParagraphBreak,
+      afterPolishPoints,
     };
   },
 };

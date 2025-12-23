@@ -182,8 +182,8 @@
 import "@/assets/styles/book.css";
 import { reactive, toRefs, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { ElMessage } from "element-plus";
-import { updateBook, aiCover, aiCoverPrompt } from "@/api/author";
+import { ElMessage, ElMessageBox } from "element-plus";
+import { updateBook, aiCover, aiCoverPrompt, getAuthorStatus } from "@/api/author";
 import { uploadImageFromUrl } from "@/api/resource";
 import { getBookById, listCategorys } from "@/api/book";
 import { getImageUrl } from "@/utils/index";
@@ -213,6 +213,10 @@ export default {
       generatingCover: false, // 生成封面状态
       previewCoverUrl: '', // 预览封面URL
       settingCover: false, // 设置封面状态
+      authorPoints: {
+        freePoints: 0,
+        paidPoints: 0
+      }
     });
 
     onMounted(async () => {
@@ -297,6 +301,22 @@ export default {
       }
     };
 
+    // 获取作者积分信息
+    const fetchAuthorPoints = async () => {
+      try {
+        const response = await getAuthorStatus();
+        if (response && response.data) {
+          // 确保转换为数字类型，避免字符串拼接问题
+          state.authorPoints.freePoints = Number(response.data.freePoints) || 0;
+          state.authorPoints.paidPoints = Number(response.data.paidPoints) || 0;
+          return true;
+        }
+      } catch (error) {
+        console.error('获取积分信息失败:', error);
+      }
+      return false;
+    };
+
     const generateCover = async () => {
       // 如果正在生成提示词，不允许生成封面
       if (state.generatingPrompt) {
@@ -320,6 +340,68 @@ export default {
           } catch (e) {
             return;
           }
+      }
+      
+      // 先获取最新积分信息
+      const pointsFetched = await fetchAuthorPoints();
+      
+      const consumePoints = 100; // AI封面生成消耗100积分
+      const currentTotal = Number(state.authorPoints.freePoints || 0) + Number(state.authorPoints.paidPoints || 0);
+      const afterTotal = currentTotal - consumePoints;
+      
+      // 只有在成功获取积分信息且积分明显不足时才提示（避免因为获取失败而误判）
+      if (pointsFetched && afterTotal < 0) {
+        ElMessage.error(`积分不足！当前积分：${currentTotal}，需要：${consumePoints}`);
+        return;
+      }
+      
+      // 计算消耗后的积分（优先扣除免费积分）
+      const usedFreePoints = Math.min(consumePoints, state.authorPoints.freePoints);
+      const usedPaidPoints = Math.max(0, consumePoints - state.authorPoints.freePoints);
+      const afterFreePoints = state.authorPoints.freePoints - usedFreePoints;
+      const afterPaidPoints = state.authorPoints.paidPoints - usedPaidPoints;
+      
+      // 显示确认对话框
+      const confirmed = await ElMessageBox.confirm(
+        `
+          <div style="padding: 10px 0;">
+            <p style="margin: 8px 0; font-size: 14px;">
+              <strong>当前积分：</strong>
+              ${pointsFetched ? `
+                <span style="color: #409EFF;">免费积分 ${state.authorPoints.freePoints}</span>
+                <span style="margin: 0 5px;">+</span>
+                <span style="color: #67C23A;">永久积分 ${state.authorPoints.paidPoints}</span>
+                <span style="color: #606266;">（总计 ${currentTotal}）</span>
+              ` : '<span style="color: #909399;">积分查询失败，后端将进行积分检查</span>'}
+            </p>
+            <p style="margin: 8px 0; font-size: 14px;">
+              <strong>消耗积分：</strong>
+              <span style="color: #E6A23C;">${consumePoints} 积分</span>
+              <span style="color: #909399; font-size: 12px;">（优先扣除每日免费积分）</span>
+            </p>
+            ${pointsFetched ? `
+            <p style="margin: 8px 0; font-size: 14px; border-top: 1px solid #EBEEF5; padding-top: 8px;">
+              <strong>消耗后积分：</strong>
+              <span style="color: ${afterTotal >= 0 ? '#67C23A' : '#F56C6C'};">
+                ${afterFreePoints > 0 ? `免费积分 ${afterFreePoints}` : '免费积分 0'}
+                ${afterPaidPoints > 0 ? ` + 永久积分 ${afterPaidPoints}` : ''}
+                <span style="color: #606266;">（总计 ${afterTotal}）</span>
+              </span>
+            </p>
+            ` : ''}
+          </div>
+        `,
+        '确认生成 AI 封面',
+        {
+          confirmButtonText: '确认并扣费',
+          cancelButtonText: '取消',
+          dangerouslyUseHTMLString: true,
+          type: 'warning'
+        }
+      ).catch(() => false);
+      
+      if (!confirmed) {
+        return;
       }
       
       try {
