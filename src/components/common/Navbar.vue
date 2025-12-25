@@ -33,18 +33,29 @@ export default {
         return;
       }
 
-      const {data} = await getAuthorStatus();
-      if(data === null){
+      try {
+        const response = await getAuthorStatus();
+        // 根据 axios 拦截器，成功时返回的是 res.data，其中包含 data 字段
+        const data = response?.data;
+        if(data === null || data === undefined){
           router.push({
-          name: "authorRegister",
-        });
-        return;
-      }
+            name: "authorRegister",
+          });
+          return;
+        }
 
-      let routeUrl = router.resolve({
-        name: "authorBookList",
-      });
-      window.open(routeUrl.href, "_blank");
+        // 使用 router.push 而不是 window.open，避免新标签页的问题
+        router.push({
+          name: "authorBookList",
+        });
+      } catch (error) {
+        console.error('获取作家状态失败:', error);
+        // 如果获取状态失败，仍然尝试跳转到注册页面或列表页面
+        // 让后端接口来决定用户是否有权限
+        router.push({
+          name: "authorBookList",
+        });
+      }
     };
     return {
       goAuthor,

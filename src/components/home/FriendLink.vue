@@ -14,22 +14,23 @@
 </template>
 
 <script>
-import { reactive, toRefs, onMounted } from "vue";
-import { listHomeFriendLinks } from "@/api/home";
 export default {
   name: "FriendLink",
   setup() {
-    const state = reactive({
-      friendLinks: [],
-    });
-
-    onMounted(async () => {
-      const { data } = await listHomeFriendLinks();
-      state.friendLinks = data;
-    });
+    // 直接写死友情链接数据
+    const friendLinks = [
+      {
+        linkName: "Blog",
+        linkUrl: "http://turtle-pie.space"
+      },
+      {
+        linkName: "Github",
+        linkUrl: "https://github.com/Cheunry/turtle-website"
+      }
+    ];
 
     return {
-      ...toRefs(state),
+      friendLinks,
     };
   },
 };

@@ -347,7 +347,7 @@
 <script>
 import "@/assets/styles/book.css";
 import man from "@/assets/images/man.png";
-import { reactive, toRefs, onMounted, onUpdated } from "vue";
+import { reactive, toRefs, onMounted, onUpdated, watch } from "vue";
 import { ElMessage } from "element-plus";
 import { useRouter, useRoute } from "vue-router";
 import {
@@ -393,13 +393,36 @@ export default {
       commentId: "",
       updateComment: "",
     });
-    onMounted(() => {
-      const bookId = route.params.id;
+    // 加载数据的统一方法
+    const loadAllData = (bookId) => {
+      if (!bookId) return;
       loadBook(bookId);
       loadRecBooks(bookId);
       loadLastChapterAbout(bookId);
       loadComments(bookId);
+    };
+
+    onMounted(() => {
+      const bookId = route.params.id;
+      loadAllData(bookId);
     });
+
+    // 监听路由参数变化，当 bookId 改变时重新加载数据
+    watch(
+      () => route.params.id,
+      (newBookId, oldBookId) => {
+        if (newBookId && newBookId !== oldBookId) {
+          // 重置状态
+          state.pageNum = 1;
+          state.commentContent = "";
+          state.newestComments = {
+            commentTotal: 0,
+            comments: []
+          };
+          loadAllData(newBookId);
+        }
+      }
+    );
 
     onUpdated(() => {
       console.log("onUpdated==========================");

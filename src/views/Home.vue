@@ -82,8 +82,29 @@
               }}</a>
             </dd>
           </dl>
-
-          <LatestNews />
+          <dl class="hot_recommend" id="topBooks3">
+            <dt>
+              <a href="javascript:void(0)" @click="bookDetail(topBooks1[10].bookId)" v-if="topBooks1[10]">{{
+                topBooks1[10].bookName
+              }}</a>
+            </dt>
+            <dd>
+              <a href="javascript:void(0)" @click="bookDetail(topBooks1[11].bookId)" v-if="topBooks1[11]">{{
+                topBooks1[11].bookName
+              }}</a
+              ><a href="javascript:void(0)" @click="bookDetail(topBooks1[12].bookId)" v-if="topBooks1[12]">{{
+                topBooks1[12].bookName
+              }}</a>
+            </dd>
+            <dd>
+              <a href="javascript:void(0)" @click="bookDetail(topBooks1[13].bookId)" v-if="topBooks1[13]">{{
+                topBooks1[13].bookName
+              }}</a
+              ><a href="javascript:void(0)" @click="bookDetail(topBooks1[14].bookId)" v-if="topBooks1[14]">{{
+                topBooks1[14].bookName
+              }}</a>
+            </dd>
+          </dl>
         </div>
       </div>
       <div class="rightBox">
@@ -214,7 +235,6 @@ import { getImageUrl } from "@/utils/index";
 import { ElMessage, ElLoading } from "element-plus";
 import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
-import LatestNews from "@/components/home/LatestNews";
 import FriendLink from "@/components/home/FriendLink";
 import BookVisitRank from "@/components/home/BookVisitRank";
 import BookNewestRank from "@/components/home/BookNewestRank";
@@ -223,7 +243,6 @@ export default {
   name: "home",
   components: {
     Header,
-    LatestNews,
     FriendLink,
     BookVisitRank,
     BookNewestRank,

@@ -187,7 +187,7 @@
 
 <script>
 import "@/assets/styles/book.css";
-import { reactive, toRefs, onMounted } from "vue";
+import { reactive, toRefs, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { updateBook, aiCover, aiCoverPrompt, getAuthorStatus, getBookById } from "@/api/author";
@@ -232,6 +232,21 @@ export default {
         await loadBook(bookId);
       }
     });
+
+    // 监听路由参数变化，当 bookId 改变时重新加载数据
+    watch(
+      () => route.params.id,
+      (newBookId, oldBookId) => {
+        if (newBookId && newBookId !== oldBookId) {
+          // 重置状态
+          state.book = { workDirection: 0, bookStatus: 0 };
+          state.bookCategorys = [];
+          state.generatedPrompt = '';
+          state.previewCoverUrl = '';
+          loadBook(newBookId);
+        }
+      }
+    );
 
     const loadBook = async (bookId) => {
       const { data } = await getBookById(bookId);

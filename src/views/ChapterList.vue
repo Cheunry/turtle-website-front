@@ -62,7 +62,7 @@
 
 <script>
 import "@/assets/styles/book.css";
-import { reactive, toRefs, onMounted } from "vue";
+import { reactive, toRefs, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { getBookById, listChapters } from "@/api/book";
 import Header from "@/components/common/Header";
@@ -83,9 +83,8 @@ export default {
       chapterList: [],
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
     });
-    onMounted(() => {
-      const bookId = route.params.bookId;
-      
+    // 加载数据的统一方法
+    const loadAllData = (bookId) => {
       // 检查 bookId 是否存在
       if (!bookId) {
         ElMessage.error('书籍ID无效，无法加载目录');
@@ -94,14 +93,9 @@ export default {
       }
       
       // 处理字符串 "null" 或 "undefined" 的情况
-      // 这种情况可能是从其他页面跳转时传递了无效值，但不应该直接跳转
-      // 而是显示空目录提示，让用户知道问题
       if (bookId === 'null' || bookId === 'undefined') {
         console.warn('检测到 bookId 为字符串 "null" 或 "undefined"');
-        // 设置空列表，显示友好提示，而不是直接跳转
         state.chapterList = [];
-        // 尝试从 URL 或其他地方获取有效的 bookId
-        // 如果无法获取，至少让用户看到提示信息
         return;
       }
       
@@ -116,7 +110,25 @@ export default {
       // bookId 有效，正常加载（即使目录为空也会显示友好提示）
       loadBook(bookId);
       loadChapterList(bookId);
+    };
+
+    onMounted(() => {
+      const bookId = route.params.bookId;
+      loadAllData(bookId);
     });
+
+    // 监听路由参数变化，当 bookId 改变时重新加载数据
+    watch(
+      () => route.params.bookId,
+      (newBookId, oldBookId) => {
+        if (newBookId && newBookId !== oldBookId) {
+          // 重置状态
+          state.book = {};
+          state.chapterList = [];
+          loadAllData(newBookId);
+        }
+      }
+    );
 
     const loadBook = async (bookId) => {
       try {

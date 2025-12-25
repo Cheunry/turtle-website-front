@@ -275,7 +275,7 @@
 <script>
 import "@/assets/styles/book.css";
 import "@/assets/styles/read.css";
-import { reactive, toRefs, onMounted, onBeforeUnmount, onUnmounted, computed } from "vue";
+import { reactive, toRefs, onMounted, onBeforeUnmount, onUnmounted, computed, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { getBookContent, getPreChapterId, getNextChapterId } from "@/api/book";
 import { getUid } from "@/utils/auth";
@@ -305,11 +305,8 @@ export default {
       }
       return renderMarkdown(state.data.bookContent);
     });
-    onMounted(() => {
-      // 从路由参数获取 bookId 和 chapterNum
-      const bookId = route.params.id; // 路由中的 :id 对应 bookId
-      const chapterNum = route.params.chapterNum; // 路由中的 :chapterNum 对应 chapterNum
-      
+    // 初始化数据的统一方法
+    const initData = (bookId, chapterNum) => {
       // 验证参数
       if (!bookId || bookId === 'null' || bookId === 'undefined') {
         ElMessage.error('书籍ID无效');
@@ -324,8 +321,27 @@ export default {
       }
       
       init(bookId, chapterNum);
+    };
+
+    onMounted(() => {
+      // 从路由参数获取 bookId 和 chapterNum
+      const bookId = route.params.id; // 路由中的 :id 对应 bookId
+      const chapterNum = route.params.chapterNum; // 路由中的 :chapterNum 对应 chapterNum
+      
+      initData(bookId, chapterNum);
       keyDown();
     });
+
+    // 监听路由参数变化，当 bookId 或 chapterNum 改变时重新加载数据
+    watch(
+      () => [route.params.id, route.params.chapterNum],
+      ([newBookId, newChapterNum], [oldBookId, oldChapterNum]) => {
+        if (newBookId && newChapterNum && 
+            (newBookId !== oldBookId || newChapterNum !== oldChapterNum)) {
+          initData(newBookId, newChapterNum);
+        }
+      }
+    );
 
     onBeforeUnmount(async () => {
       console.log("onBeforeUnmount............");
@@ -936,7 +952,7 @@ body,
   right: 20px;
   width: 16px;
   height: 15px;
-  background-posion: -43px -126px;
+  background-position: -43px -126px;
 }
 .chapterBox {
   width: 600px;

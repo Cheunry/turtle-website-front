@@ -77,52 +77,6 @@
                         {{ showPreview ? '编辑模式' : '预览模式' }}
                       </el-button>
 
-                      <!-- 参数输入对话框 -->
-                      <el-dialog
-                        v-model="dialogVisible"
-                        :title="dialogTitle"
-                        width="30%"
-                      >
-                        <div
-                          v-if="
-                            currentAction === 'expand' ||
-                            currentAction === 'condense'
-                          "
-                        >
-                          <el-input
-                            v-model.number="ratio"
-                            type="number"
-                            :placeholder="`请输入${
-                              currentAction === 'expand' ? '扩写' : '缩写'
-                            }比例（1-200%）`"
-                            min="1"
-                            max="200"
-                          >
-                            <template #append>%</template>
-                          </el-input>
-                        </div>
-
-                        <div v-if="currentAction === 'continue'">
-                          <el-input
-                            v-model.number="length"
-                            type="number"
-                            placeholder="请输入续写长度（50-1000字）"
-                            min="50"
-                            max="1000"
-                          >
-                            <template #append>字</template>
-                          </el-input>
-                        </div>
-
-                        <template #footer>
-                          <el-button @click="dialogVisible = false"
-                            >取消</el-button
-                          >
-                          <el-button type="primary" @click="confirmParams"
-                            >确定</el-button
-                          >
-                        </template>
-                      </el-dialog>
                     </div>
                     <!-- 编辑模式 -->
                     <textarea
@@ -188,51 +142,6 @@
                           </el-icon>
                         </el-button>
                       </div>
-                      <el-dialog
-                        v-model="dialogVisible"
-                        :title="dialogTitle"
-                        width="30%"
-                      >
-                        <div
-                          v-if="
-                            currentAction === 'expand' ||
-                            currentAction === 'condense'
-                          "
-                        >
-                          <el-input
-                            v-model.number="ratio"
-                            type="number"
-                            :placeholder="`请输入${
-                              currentAction === 'expand' ? '扩写' : '缩写'
-                            }比例（1-200%）`"
-                            min="1"
-                            max="200"
-                          >
-                            <template #append>%</template>
-                          </el-input>
-                        </div>
-
-                        <div v-if="currentAction === 'continue'">
-                          <el-input
-                            v-model.number="length"
-                            type="number"
-                            placeholder="请输入续写长度（50-1000字）"
-                            min="50"
-                            max="1000"
-                          >
-                            <template #append>字</template>
-                          </el-input>
-                        </div>
-
-                        <template #footer>
-                          <el-button @click="dialogVisible = false"
-                            >取消</el-button
-                          >
-                          <el-button type="primary" @click="confirmParams"
-                            >确定</el-button
-                          >
-                        </template>
-                      </el-dialog>
                     </div>
                     
                     <div class="fullscreen-content" :class="{ 'polish-mode': isPolishMode, 'preview-mode': showFullscreenPreview && !isPolishMode }">
@@ -470,15 +379,10 @@ export default {
       ],
       submitting: false, // 提交状态
       aiButtons: [
-        { label: "AI扩写", action: "expand", type: "primary" },
-        { label: "AI缩写", action: "condense", type: "success" },
-        { label: "AI续写", action: "continue", type: "warning" },
         { label: "AI润色", action: "polish", type: "danger" },
       ],
       dialogVisible: false,
       currentAction: '',
-      ratio: 30,
-      length: 200,
       showPreview: false, // 普通编辑预览模式开关
       showFullscreenPreview: false, // 全屏编辑预览模式开关
       authorPoints: {
@@ -489,9 +393,6 @@ export default {
 
     const dialogTitle = computed(() => {
       const map = {
-        expand: '扩写设置',
-        condense: '缩写设置',
-        continue: '续写设置',
         polish: '润色设置'
       }
       return map[state.currentAction]
@@ -526,38 +427,7 @@ export default {
       state.currentAction = action
       if (action === 'polish') {
         handleAI(action)
-      } else {
-        state.dialogVisible = true
       }
-    }
-
-    const validateParams = () => {
-      if (state.currentAction === 'expand') {
-        if (!state.ratio || state.ratio < 110 || state.ratio > 200) {
-          ElMessage.error('请输入110-200%之间的比例')
-          return false
-        }
-      }
-      if (state.currentAction === 'condense') {
-        if (!state.ratio || state.ratio < 1 || state.ratio > 99) {
-          ElMessage.error('请输入1-99%之间的比例')
-          return false
-        }
-      }
-      if (state.currentAction === 'continue') {
-        if (!state.length || state.length < 50 || state.length > 1000) {
-          ElMessage.error('请输入50-1000字之间的长度')
-          return false
-        }
-      }
-      return true
-    }
-
-    const confirmParams = async () => {
-      if (!validateParams()) return
-      
-      state.dialogVisible = false
-      await handleAI(state.currentAction)
     }
 
     const checkSelection = () => {
@@ -749,11 +619,6 @@ export default {
           } else {
               throw new Error("响应数据为空");
           }
-        } else {
-          // 对于扩写、缩写、续写等未实现的功能，显示提示
-          ElMessage.warning("该功能暂未实现，请使用AI润色功能");
-          state.generating = false;
-          return;
         }
         
       } catch (error) {
@@ -940,7 +805,6 @@ export default {
       handleAI,
       dialogTitle,
       openDialog,
-      confirmParams,
       Loading,
       enterFullscreen,
       exitFullscreen,

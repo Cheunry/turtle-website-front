@@ -13,14 +13,14 @@
         </ul>
       </div>
       <div class="my_r">
-        <div id="noContentDiv" v-if="total == 0">
+        <div id="noContentDiv" v-if="!loading && total == 0">
           <div class="tc" style="margin-top: 200px">
             <router-link :to="{ name: 'authorBookAdd' }" class="btn_red"
               >创建作品</router-link
             >
           </div>
         </div>
-        <div class="my_bookshelf" id="hasContentDiv" v-if="total > 0">
+        <div class="my_bookshelf" id="hasContentDiv" v-if="!loading && total > 0">
           <div class="title cf">
             <h2 class="fl">小说列表</h2>
             <div class="fr">
@@ -30,7 +30,7 @@
             </div>
           </div>
 
-          <div id="divData" class="updateTable">
+          <div id="divData" class="updateTable" v-loading="loading">
             <table cellpadding="0" cellspacing="0">
               <thead>
                 <tr>
@@ -141,7 +141,7 @@
 
 <script>
 import "@/assets/styles/book.css";
-import { reactive, toRefs, onMounted, ref } from "vue";
+import { reactive, toRefs, onMounted, ref, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { listBooks, deleteBook } from "@/api/author";
 import { getImageUrl } from "@/utils/index";
@@ -163,21 +163,67 @@ export default {
       total: 0,
       pageSize: 10,
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
+      loading: false,
     });
-    onMounted(() => {
+    
+    // 加载数据的统一方法，包含重置逻辑
+    const loadData = () => {
+      // 重置搜索条件（但保留分页大小）
+      const pageSize = state.searchCondition.pageSize || state.pageSize;
+      state.searchCondition = { pageSize };
+      state.books = [];
+      state.total = 0;
       load();
+    };
+
+    onMounted(() => {
+      loadData();
     });
 
+    // 监听路由路径变化，确保每次进入页面时都重新加载数据
+    watch(
+      () => route.path,
+      (newPath, oldPath) => {
+        // 当路由路径变为 /author/book_list 时，重新加载数据
+        // oldPath 可能为 undefined（首次加载或新标签页），所以也要检查
+        if (newPath === '/author/book_list' && (oldPath === undefined || newPath !== oldPath)) {
+          loadData();
+        }
+      },
+      { immediate: false }
+    );
+
+    // 同时监听路由名称，确保路由变化时能正确加载
+    watch(
+      () => route.name,
+      (newName, oldName) => {
+        if (newName === 'authorBookList' && newName !== oldName) {
+          loadData();
+        }
+      },
+      { immediate: false }
+    );
+
     const load = async () => {
-      const { data } = await listBooks(state.searchCondition);
-      state.books = data.list;
-      state.searchCondition.pageNum = data.pageNum;
-      state.searchCondition.pageSize = data.pageSize;
-      state.total = Number(data.total);
-      // 调试：打印第一条数据，检查 auditStatus 字段
-      if (data.list && data.list.length > 0) {
-        console.log('第一条书籍数据:', data.list[0]);
-        console.log('auditStatus 值:', data.list[0].auditStatus, '类型:', typeof data.list[0].auditStatus);
+      state.loading = true;
+      try {
+        const { data } = await listBooks(state.searchCondition);
+        state.books = data.list || [];
+        state.searchCondition.pageNum = data.pageNum;
+        state.searchCondition.pageSize = data.pageSize;
+        state.total = Number(data.total) || 0;
+        // 调试：打印第一条数据，检查 auditStatus 字段
+        if (data.list && data.list.length > 0) {
+          console.log('第一条书籍数据:', data.list[0]);
+          console.log('auditStatus 值:', data.list[0].auditStatus, '类型:', typeof data.list[0].auditStatus);
+        }
+      } catch (error) {
+        console.error('加载小说列表失败:', error);
+        // 错误已经在 request 拦截器中统一处理，这里只需要重置状态
+        state.books = [];
+        state.total = 0;
+      } finally {
+        state.loading = false;
       }
     };
 
@@ -258,6 +304,16 @@ export default {
       }
     };
 
+    const wordCountFormat = (wordCount) => {
+      if (!wordCount) return '0';
+      const count = Number(wordCount);
+      if (isNaN(count)) return wordCount;
+      if (count >= 10000) {
+        return Math.floor(count / 10000) + "万";
+      }
+      return count.toString();
+    };
+
     return {
       ...toRefs(state),
       handleCurrentChange,
@@ -267,18 +323,10 @@ export default {
       formatDate,
       formatTime,
       getAuditStatusText,
-      getAuditStatusColor
+      getAuditStatusColor,
+      wordCountFormat,
+      route
     };
-  },
-  computed: {
-    wordCountFormat(wordCount) {
-      return (wordCount) => {
-        if (wordCount.length >= 5) {
-          return parseInt(wordCount / 10000) + "万";
-        }
-        return wordCount;
-      };
-    },
   },
 };
 </script>

@@ -37,13 +37,17 @@
                 </thead>
                 <tbody v-if="messages.length > 0">
                     <tr v-for="msg in messages" :key="msg.id">
-                        <td class="check"><input type="checkbox" :value="msg.id" v-model="selectedIds" /></td>
+                        <td class="check"><input type="checkbox" :value="msg.id" v-model="selectedIds" :disabled="msg.type == 0" /></td>
                         <td class="style">
-                            <span v-if="msg.isRead == 0" class="red-dot">●</span>
-                            <span v-else class="read-text">已读</span>
+                            <!-- 其他消息显示已读/未读状态 -->
+                            <span v-if="msg.type != 0 && msg.isRead == 0" class="red-dot">●</span>
+                            <span v-else-if="msg.type != 0" class="read-text">已读</span>
+                            <!-- 系统消息（type=0）不在这里显示，而是在标题左上角 -->
                         </td>
                         <td class="name" @click="viewMessage(msg)">
-                            <a href="javascript:void(0);" :class="{ 'unread-title': msg.isRead == 0 }">
+                            <a href="javascript:void(0);" :class="{ 'unread-title': msg.isRead == 0 && msg.type != 0 }" :style="{ position: 'relative' }">
+                                <!-- 系统消息（type=0）显示红色new标签在左上角 -->
+                                <span v-if="msg.type == 0" class="new-badge-top-left">new</span>
                                 {{ msg.title }}
                             </a>
                         </td>
@@ -181,7 +185,8 @@ export default {
 
     const handleSelectAll = () => {
         if (state.isAllSelected) {
-            state.selectedIds = state.messages.map(msg => msg.id);
+            // 只选择非系统消息（系统消息不支持操作）
+            state.selectedIds = state.messages.filter(msg => msg.type != 0).map(msg => msg.id);
         } else {
             state.selectedIds = [];
         }
@@ -204,7 +209,8 @@ export default {
     const viewMessage = async (msg) => {
       state.currentMessage = msg;
       state.dialogVisible = true;
-      if (msg.isRead == 0) {
+      // 系统消息（type=0）不支持已读操作，跳过
+      if (msg.isRead == 0 && msg.type != 0) {
         try {
           await readMessage(msg.id);
           // Update local state to reflect read status
@@ -219,6 +225,13 @@ export default {
     };
 
     const handleDelete = (id) => {
+      // 找到要删除的消息，检查是否是系统消息
+      const msg = state.messages.find(m => m.id === id);
+      if (msg && msg.type == 0) {
+        ElMessage.warning("系统公告不支持删除操作");
+        return;
+      }
+      
       ElMessageBox.confirm("确认删除该消息？", "提示", {
         type: "warning",
       }).then(async () => {
@@ -232,12 +245,27 @@ export default {
     };
 
     const handleBatchRead = async () => {
+        // 过滤掉系统消息（系统消息不支持已读操作）
+        const nonSystemIds = state.selectedIds.filter(id => {
+            const msg = state.messages.find(m => m.id === id);
+            return msg && msg.type != 0;
+        });
+        
+        if (nonSystemIds.length === 0) {
+            ElMessage.warning("选中的消息中没有可标记为已读的消息（系统公告不支持已读操作）");
+            return;
+        }
+        
+        if (nonSystemIds.length < state.selectedIds.length) {
+            ElMessage.info(`已过滤 ${state.selectedIds.length - nonSystemIds.length} 条系统公告`);
+        }
+        
         try {
-            await batchReadMessages(state.selectedIds);
+            await batchReadMessages(nonSystemIds);
             ElMessage.success("标记成功");
             // 更新本地状态
             state.messages.forEach(msg => {
-                if (state.selectedIds.includes(msg.id)) {
+                if (nonSystemIds.includes(msg.id)) {
                     msg.isRead = 1;
                 }
             });
@@ -249,10 +277,25 @@ export default {
     };
 
     const handleBatchDelete = () => {
-        ElMessageBox.confirm(`确认删除选中的 ${state.selectedIds.length} 条消息？`, "提示", {
+        // 过滤掉系统消息（系统消息不支持删除操作）
+        const nonSystemIds = state.selectedIds.filter(id => {
+            const msg = state.messages.find(m => m.id === id);
+            return msg && msg.type != 0;
+        });
+        
+        if (nonSystemIds.length === 0) {
+            ElMessage.warning("选中的消息中没有可删除的消息（系统公告不支持删除操作）");
+            return;
+        }
+        
+        if (nonSystemIds.length < state.selectedIds.length) {
+            ElMessage.info(`已过滤 ${state.selectedIds.length - nonSystemIds.length} 条系统公告`);
+        }
+        
+        ElMessageBox.confirm(`确认删除选中的 ${nonSystemIds.length} 条消息？`, "提示", {
             type: "warning"
         }).then(async () => {
-            await batchDeleteMessages(state.selectedIds);
+            await batchDeleteMessages(nonSystemIds);
             ElMessage.success("删除成功");
             loadData();
             window.dispatchEvent(new Event('message-status-changed'));
@@ -426,9 +469,11 @@ export default {
     text-decoration: none;
     display: block;
     white-space: nowrap;
-    overflow: hidden;
+    overflow: visible;
     text-overflow: ellipsis;
     max-width: 250px;
+    position: relative;
+    padding-left: 30px;
 }
 .name a:hover {
     color: #f80;
@@ -472,6 +517,22 @@ export default {
 .read-text {
     color: #ccc;
     font-size: 12px;
+}
+.new-badge-top-left {
+    position: absolute;
+    top: -8px;
+    left: -25px;
+    display: inline-block;
+    background: #f56c6c;
+    color: #fff;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px;
+    line-height: 1.2;
+    text-transform: uppercase;
+    z-index: 1;
+    white-space: nowrap;
 }
 
 .nodate {
