@@ -853,14 +853,32 @@ export default {
 
       try {
         state.submitting = true;
+        // 后端已优化为极简响应（<30ms），无需延迟跳转
         await updateChapter(state.bookId, state.chapterNum, state.chapter);
-        ElMessage.success("您的章节内容已提交成功，请等待审核");
-        // 延迟跳转，确保用户看到提示消息
-        setTimeout(() => {
-          router.push({ name: 'authorChapterList', query: { id: state.bookId } });
-        }, 500);
+        ElMessage.success("章节已提交，正在处理中，审核结果将稍后通知您");
+        // 立即跳转，后端异步处理不会阻塞
+        router.push({ name: 'authorChapterList', query: { id: state.bookId } });
       } catch (error) {
-        ElMessage.error("提交失败：" + (error.message || "未知错误"));
+        // 优化错误提示：使用拦截器提供的错误信息或业务错误信息
+        let errorMessage = "提交失败，请稍后重试";
+        
+        // 优先使用拦截器提供的格式化错误信息（网络错误）
+        if (error.errorMessage) {
+          errorMessage = error.errorMessage;
+        }
+        // 其次使用业务错误消息（已在拦截器中显示，这里不重复显示）
+        else if (error.message) {
+          // 业务错误已在request拦截器中显示，这里只记录日志
+          console.error('业务错误:', error.message);
+          // 不显示错误，因为拦截器已经显示过了
+          return;
+        }
+        // 其他未知错误
+        else {
+          errorMessage = "提交失败，请稍后重试";
+        }
+        
+        ElMessage.error(errorMessage);
       } finally {
         state.submitting = false;
       }

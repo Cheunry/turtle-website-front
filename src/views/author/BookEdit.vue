@@ -149,15 +149,22 @@
                 </li>
                 <b>小说介绍：</b>
                 <li>
-                  <textarea 
-                    v-model="book.bookDesc" 
-                    rows="5" 
-                    cols="106" 
-                    class="textarea" 
-                    id="bookDesc"
-                    :disabled="generatingPrompt || generatingCover"
-                    :style="{ opacity: (generatingPrompt || generatingCover) ? 0.6 : 1, cursor: (generatingPrompt || generatingCover) ? 'not-allowed' : 'text' }"
-                  ></textarea>
+                  <div style="position: relative;">
+                    <textarea 
+                      v-model="book.bookDesc" 
+                      rows="5" 
+                      cols="106" 
+                      class="textarea" 
+                      id="bookDesc"
+                      :disabled="generatingPrompt || generatingCover"
+                      :style="{ opacity: (generatingPrompt || generatingCover) ? 0.6 : 1, cursor: (generatingPrompt || generatingCover) ? 'not-allowed' : 'text' }"
+                      placeholder="请输入小说简介，建议50-2000字"
+                      maxlength="2000"
+                    ></textarea>
+                    <div style="position: absolute; bottom: 8px; right: 12px; font-size: 12px; color: #999; background: rgba(255,255,255,0.8); padding: 2px 6px; border-radius: 3px;">
+                      {{ (book.bookDesc || '').length }}/2000
+                    </div>
+                  </div>
                 </li>
                 <li>
                   <input 
@@ -183,9 +190,9 @@ import "@/assets/styles/book.css";
 import { reactive, toRefs, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { updateBook, aiCover, aiCoverPrompt, getAuthorStatus } from "@/api/author";
+import { updateBook, aiCover, aiCoverPrompt, getAuthorStatus, getBookById } from "@/api/author";
 import { uploadImageFromUrl } from "@/api/resource";
-import { getBookById, listCategorys } from "@/api/book";
+import { listCategorys } from "@/api/book";
 import { getImageUrl } from "@/utils/index";
 import AuthorHeader from "@/components/author/Header.vue";
 import picUpload from "@/assets/images/pic_upload.png";
@@ -510,12 +517,11 @@ export default {
       const params = { ...state.book, bookId: state.book.id };
       try {
         state.submitting = true;
+        // 后端已优化为异步处理（发送MQ后立即返回），无需等待审核完成
         await updateBook(state.book.id, params);
-        ElMessage.success("您的小说基本信息已提交成功，请等待审核");
-        // 延迟跳转，确保用户看到提示消息
-        setTimeout(() => {
-          router.push({ name: 'authorBookList' });
-        }, 500);
+        ElMessage.success("您的小说基本信息已提交成功，正在处理中，审核结果将稍后通知您");
+        // 立即跳转，后端异步处理不会阻塞
+        router.push({ name: 'authorBookList' });
       } catch (error) {
         // 错误信息已经在拦截器中处理
       } finally {

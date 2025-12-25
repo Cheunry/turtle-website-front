@@ -44,6 +44,10 @@ export function updateBook(bookId, params) {
     return request.put(`/author/book/${bookId}`, params);
 }
 
+export function getBookById(bookId) {
+    return request.get(`/author/book/${bookId}`);
+}
+
 // 获取作家未读消息数量
 export function getAuthorUnReadCount() {
     return request.get('/author/message/unread_count');

@@ -191,13 +191,11 @@ export default {
       }
       try {
         state.submitting = true;
-        // 封面字段由后端填充默认值
+        // 后端已优化为异步处理（发送MQ后立即返回），无需等待审核完成
         await publishBook(state.book)
-        ElMessage.success("您的小说基本信息已提交成功，请前往列表页上传封面");
-        // 延迟跳转，确保用户看到提示消息
-        setTimeout(() => {
-          router.push({'name':'authorBookList'})
-        }, 500);
+        ElMessage.success("您的小说基本信息已提交成功，正在处理中，审核结果将稍后通知您");
+        // 立即跳转，后端异步处理不会阻塞
+        router.push({'name':'authorBookList'})
       } catch (error) {
         // 错误信息已经在拦截器中处理
       } finally {
