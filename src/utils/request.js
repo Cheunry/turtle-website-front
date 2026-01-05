@@ -7,7 +7,7 @@ import { reportError } from '@/utils/errorReport'
 
 
 axios.defaults.baseURL = process.env.VUE_APP_BASE_API_URL
-axios.defaults.timeout = 10000
+axios.defaults.timeout = 60000 // 将默认超时时间调整为 60 秒
 axios.defaults.withCredentials = true
 axios.defaults.headers['X-Requested-With'] = 'XMLHttpRequest'
 axios.defaults.headers.post['Content-Type'] = 'application/json'

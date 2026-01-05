@@ -191,7 +191,7 @@ import { reactive, toRefs, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { updateBook, aiCover, aiCoverPrompt, getAuthorStatus, getBookById } from "@/api/author";
-import { uploadImageFromUrl } from "@/api/resource";
+// uploadImageFromUrl 已不再需要，AI 服务直接返回 COS URL
 import { listCategorys } from "@/api/book";
 import { getImageUrl } from "@/utils/index";
 import AuthorHeader from "@/components/author/Header.vue";
@@ -266,8 +266,32 @@ export default {
       }
     };
 
-    const handleAvatarSuccess = (url) => {
-      state.book.picUrl = url;
+    const handleAvatarSuccess = async (url) => {
+      console.log("handleAvatarSuccess 被调用，URL:", url);
+      try {
+        // 更新本地显示
+        state.book.picUrl = url;
+        console.log("已更新本地 picUrl:", state.book.picUrl);
+        
+        // 如果有 bookId，立即保存到数据库
+        if (state.book.id) {
+          console.log("开始保存封面到数据库，bookId:", state.book.id);
+          await updateBook(state.book.id, {
+            ...state.book,
+            bookId: state.book.id,
+            picUrl: url
+          });
+          ElMessage.success("封面已更新");
+          console.log("封面保存成功");
+        } else {
+          // 如果是新增书籍，只更新本地状态，等保存书籍时一起提交
+          ElMessage.success("封面已选择，保存书籍时将一并提交");
+          console.log("新增书籍模式，封面将在保存书籍时提交");
+        }
+      } catch (error) {
+        console.error("保存封面失败:", error);
+        ElMessage.error("保存封面失败: " + (error.message || "未知错误"));
+      }
     };
 
     const categoryChange = (event) => {
@@ -479,26 +503,25 @@ export default {
       
       try {
         state.settingCover = true;
-        // 1. 转存图片到 COS
-        const response = await uploadImageFromUrl(state.previewCoverUrl);
-        if (response && response.data) {
-          const cosUrl = response.data;
-          // 2. 更新本地显示
-          state.book.picUrl = cosUrl;
-          // 3. 更新数据库
-          await updateBook(state.book.id, {
-             ...state.book, 
-             bookId: state.book.id,
-             picUrl: cosUrl 
-          });
-          ElMessage.success("已成功设置为封面");
-          state.previewCoverUrl = ''; // 清除预览，因为已经应用了
-        } else {
-          ElMessage.error("封面设置失败");
-        }
+        
+        // AI 服务已经直接返回 COS URL，无需再次转存
+        // 直接使用返回的 URL
+        const cosUrl = state.previewCoverUrl;
+        
+        // 1. 更新本地显示
+        state.book.picUrl = cosUrl;
+        
+        // 2. 更新数据库
+        await updateBook(state.book.id, {
+           ...state.book, 
+           bookId: state.book.id,
+           picUrl: cosUrl 
+        });
+        ElMessage.success("已成功设置为封面");
+        state.previewCoverUrl = ''; // 清除预览，因为已经应用了
       } catch (error) {
         console.error("设置封面失败:", error);
-        ElMessage.error("设置封面失败");
+        ElMessage.error("设置封面失败: " + (error.message || "未知错误"));
       } finally {
         state.settingCover = false;
       }

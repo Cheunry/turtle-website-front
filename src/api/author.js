@@ -92,20 +92,20 @@ export function allDeleteAuthorMessages() {
 
 // AI 审核 (含扣分逻辑)
 export function aiAudit(params) {
-    return request.post('/author/ai/audit', params, { timeout: 60000 });
+    return request.post('/author/ai/audit', params, { timeout: 180000 });
 }
 
 // AI 润色 (含扣分逻辑)
 export function aiPolish(params) {
-    return request.post('/author/ai/polish', params, { timeout: 60000 });
+    return request.post('/author/ai/polish', params, { timeout: 180000 });
 }
 
 // AI 封面生成 (含扣分逻辑)
 export function aiCover(params) {
-    return request.post('/author/ai/cover', params, { timeout: 60000 });
+    return request.post('/author/ai/cover', params, { timeout: 180000 });
 }
 
 // AI 封面提示词生成 (不扣分，仅生成提示词)
 export function aiCoverPrompt(params) {
-    return request.post('/author/ai/cover-prompt', params, { timeout: 30000 });
+    return request.post('/author/ai/cover-prompt', params, { timeout: 60000 });
 }

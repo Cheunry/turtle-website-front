@@ -58,7 +58,7 @@
 import { reactive, ref, toRefs } from "vue";
 import "vue-cropper/dist/index.css";
 import { VueCropper } from "vue-cropper";
-import { uploadImage } from "@/api/resource";
+import { uploadImageDirect, uploadImage } from "@/api/resource";
 import { ElMessage, ElMessageBox } from "element-plus";
 
 export default {
@@ -176,22 +176,36 @@ export default {
         });
     };
 
-    const doUpload = (blob) => {
-        const formData = new FormData();
-        // 如果压缩过，通常是jpeg
-        const fileName = blob.type === 'image/jpeg' ? 'cropped.jpg' : 'cropped.png';
-        formData.append("file", blob, fileName);
-        
-        uploadImage(formData)
-          .then(({ data }) => {
-            ElMessage.success("上传成功");
-            emit("uploaded", data);
-            closeDialog();
-          })
-          .catch(() => {
-            ElMessage.error("上传失败");
+    const doUpload = async (blob) => {
+        try {
+            // 如果压缩过，通常是jpeg
+            const fileName = blob.type === 'image/jpeg' ? 'cropped.jpg' : 'cropped.png';
+            // 将 Blob 转换为 File 对象
+            const file = new File([blob], fileName, { type: blob.type });
+            
+            // 优先尝试前端直传模式（性能更好，不经过服务器）
+            try {
+                const { data } = await uploadImageDirect(file);
+                ElMessage.success("上传成功");
+                emit("uploaded", data);
+                closeDialog();
+                return;
+            } catch (directError) {
+                console.warn("前端直传失败，回退到后端转发模式:", directError);
+                // 如果前端直传失败，回退到后端转发模式
+                const formData = new FormData();
+                formData.append("file", file, fileName);
+                
+                const { data } = await uploadImage(formData);
+                ElMessage.success("上传成功");
+                emit("uploaded", data);
+                closeDialog();
+            }
+        } catch (error) {
+            console.error("上传失败:", error);
+            ElMessage.error("上传失败: " + (error.message || "未知错误"));
             state.loading = false;
-          });
+        }
     };
 
     // 确认裁剪并上传
