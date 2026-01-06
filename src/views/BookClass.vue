@@ -8,27 +8,11 @@
     <div class="channelWrap classTable cf">
       <div class="so_tag">
         <ul class="list">
-          <li class="so_pd" id="workDirection">
-            <span class="tit">作品频道：</span>
-            <a
-              filter-value="0"
-              href="javascript:void(0)"
-              @click="loadCategoryList(0)"
-              :class="`${workDirectionOn == 0 ? 'on' : ''}`"
-              >男频</a
-            >
-            <a
-              filter-value="1"
-              href="javascript:void(0)"
-              @click="loadCategoryList(1)"
-              :class="`${workDirectionOn == 1 ? 'on' : ''}`"
-              >女频</a
-            >
-          </li>
+          <!-- 移除了作品频道过滤 -->
           <li id="idGirl" class="so_class">
             <span class="tit">作品分类：</span>
 
-            <span class="so_boy" id="boyCategoryList">
+            <span class="so_boy" id="boyCategoryList" :class="{ 'expand': isCategoryExpanded }">
               <a
                 href="javascript:void(0)"
                 :class="`${categoryOn == 0 ? 'on' : ''}`"
@@ -36,7 +20,7 @@
                 >不限</a
               >
               <a
-                v-for="(item, index) in bookCategorys"
+                v-for="(item, index) in displayedCategories"
                 :key="index"
                 href="javascript:void(0)"
                 :class="`${categoryOn == item.id ? 'on' : ''}`"
@@ -44,6 +28,10 @@
                 >{{ item.name }}</a
               >
             </span>
+            <a href="javascript:void(0)" class="expand-btn" @click="toggleCategoryExpand" v-if="bookCategorys.length > 7">
+              {{ isCategoryExpanded ? '收起' : '更多' }}
+              <i :class="isCategoryExpanded ? 'el-icon-arrow-up' : 'el-icon-arrow-down'"></i>
+            </a>
           </li>
           <li class="so_progress">
             <span class="tit">是否完结：</span>
@@ -169,6 +157,19 @@
               >点击量</a
             >
           </li>
+          <!-- 新增搜索模式选择 -->
+          <li class="so_sort" v-if="searchCondition.keyword">
+             <span class="tit">搜索模式：</span>
+             <a href="javascript:void(0)"
+                :class="`${searchModeOn == 0 ? 'on' : ''}`"
+                @click="changeSearchMode(0)">智能匹配</a>
+             <a href="javascript:void(0)"
+                :class="`${searchModeOn == 1 ? 'on' : ''}`"
+                @click="changeSearchMode(1)">搜情节(AI)</a>
+             <a href="javascript:void(0)"
+                :class="`${searchModeOn == 2 ? 'on' : ''}`"
+                @click="changeSearchMode(2)">搜书名</a>
+          </li>
         </ul>
       </div>
     </div>
@@ -255,12 +256,13 @@ export default {
       total: 0,
       pageSize: 10,
       imgBaseUrl: process.env.VUE_APP_BASE_IMG_URL,
-      workDirectionOn: 0,
       categoryOn: 0,
       bookStatusOn: null,
       wordCountOn: null,
       updateTimeOn: null,
-      sortOn:null
+      sortOn:null,
+      searchModeOn: 0,
+      isCategoryExpanded: false
     });
     onMounted(async () => {  // 改为 async
       const key = route.query.key;
@@ -269,18 +271,23 @@ export default {
         keyword: key,
         pageSize: 10,
         pageNum: 1,
-        workDirection: 0,  // 设置默认值
+        // workDirection: null,  // 移除作品方向
         categoryId: null,
         bookStatus: null,
         wordCountMin: null,
         wordCountMax: null,
         updateTimeMin: null,
-        sort: null
+        sort: null,
+        searchMode: 0
       };
-      await loadCategoryList(0);  // 添加 await，确保数据加载完成
+      await loadCategoryList();  // 默认加载全部
     });
 
     const search = async () => {
+      // 只有当有关键词时才传递 searchMode
+      if (!state.searchCondition.keyword) {
+        state.searchCondition.searchMode = null;
+      }
       const { data } = await searchBooks(state.searchCondition);
       state.books = data.list;
       state.searchCondition.pageNum = data.pageNum;
@@ -289,7 +296,9 @@ export default {
     };
 
     const searchByK = (key) => {
-      state.searchCondition = { keyword: key };
+      state.searchCondition.keyword = key;
+      state.searchCondition.pageNum = 1;
+      // 保持当前的 searchMode
       search();
     };
     const bookDetail = (bookId) => {
@@ -301,11 +310,10 @@ export default {
       search();
     };
 
-    const loadCategoryList = async (workDirection) => {
-      const { data } = await listCategorys({ workDirection: workDirection });
+    const loadCategoryList = async () => {
+      // 移除 workDirection 参数，加载所有分类
+      const { data } = await listCategorys({});
       state.bookCategorys = data;
-      state.workDirectionOn = workDirection;
-      state.searchCondition.workDirection = workDirection;
       state.categoryOn = 0;
       state.searchCondition.categoryId = null;
       search();
@@ -354,6 +362,16 @@ export default {
       search();
     };
 
+    const changeSearchMode = (mode) => {
+      state.searchModeOn = mode;
+      state.searchCondition.searchMode = mode;
+      search();
+    };
+
+    const toggleCategoryExpand = () => {
+      state.isCategoryExpanded = !state.isCategoryExpanded;
+    };
+
     return {
       ...toRefs(state),
       bookDetail,
@@ -365,7 +383,9 @@ export default {
       changeBookStatus,
       changeWordCount,
       changeUpdateTime,
-      changeSort
+      changeSort,
+      changeSearchMode,
+      toggleCategoryExpand
     };
   },
   computed: {
@@ -380,6 +400,13 @@ export default {
         return wordCount;
       };
     },
+    // 根据展开状态决定显示的分类数量
+    displayedCategories() {
+      if (this.isCategoryExpanded || this.bookCategorys.length <= 7) {
+        return this.bookCategorys;
+      }
+      return this.bookCategorys.slice(0, 7);
+    },
   },
 };
 </script>
@@ -393,5 +420,30 @@ export default {
 }
 .el-pagination {
   --el-pagination-hover-color: #f80 !important;
+}
+
+.so_class {
+  position: relative;
+  padding-right: 60px; /* 为展开按钮预留空间 */
+}
+
+.so_boy {
+  display: inline-block;
+  vertical-align: top;
+  white-space: normal; /* 允许换行 */
+}
+
+.expand-btn {
+  position: absolute;
+  right: 0;
+  top: 0;
+  font-size: 12px;
+  color: #999;
+  cursor: pointer;
+  line-height: 28px; /* 与分类链接对齐 */
+}
+
+.expand-btn:hover {
+  color: #f80;
 }
 </style>
