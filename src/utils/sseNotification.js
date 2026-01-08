@@ -115,6 +115,18 @@ function handleAuditRejectNotification(data) {
  * @param {Object} data 消息数据
  */
 function handleMessageNotification(data) {
+  // 检查消息是否有效：必须有title或content，且不能都是空字符串
+  const hasTitle = data.title && data.title.trim() !== ''
+  const hasContent = data.content && data.content.trim() !== ''
+  
+  // 如果消息无效（没有title也没有content），不显示通知
+  if (!hasTitle && !hasContent) {
+    console.log('收到空消息，跳过显示:', data)
+    // 仍然触发事件，让其他组件知道有消息（可能是系统消息）
+    window.dispatchEvent(new CustomEvent('sse-message-received', { detail: data }))
+    return
+  }
+
   ElNotification({
     title: data.title || '消息通知',
     message: data.content || '',

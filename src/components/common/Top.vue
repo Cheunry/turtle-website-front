@@ -50,7 +50,7 @@ import logo from "@/assets/images/logo.png";
 import { reactive, toRefs, onMounted, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { getToken, getNickName, removeToken, removeNickName,removeUid } from "@/utils/auth";
-import { countUnreadMessages } from "@/api/user";
+import { countUnreadMessages, logout as logoutApi } from "@/api/user";
 export default {
   name: "Top",
   setup(props, context) {
@@ -69,10 +69,17 @@ export default {
         if (state.token) {
             try {
                 const { data } = await countUnreadMessages();
-                state.unreadCount = data || 0;
+                // 确保unreadCount是数字类型，且非负数
+                const count = Number(data);
+                state.unreadCount = (isNaN(count) || count < 0) ? 0 : count;
             } catch (error) {
                 console.error("Failed to load unread messages count", error);
+                // 请求失败时，将未读数量设为0，避免显示错误数据
+                state.unreadCount = 0;
             }
+        } else {
+            // 未登录时，确保未读数量为0
+            state.unreadCount = 0;
         }
     };
 
@@ -80,14 +87,31 @@ export default {
       router.push({ path: "/bookclass", query: { key: state.keyword } });
       context.emit("eventSerch", state.keyword);
     };
-    const logout = () => {
-      removeToken();
-      removeNickName();
-      removeUid()
-      state.nickName = "";
-      state.token = "";
-      state.unreadCount = 0;
-      router.push({ name: 'home' });
+    const logout = async () => {
+      try {
+        // 调用后端登出接口，将Token加入黑名单
+        const token = getToken();
+        if (token) {
+          await logoutApi();
+        }
+      } catch (error) {
+        // 即使后端登出失败，也继续执行前端登出逻辑
+        console.error('登出失败:', error);
+      } finally {
+        // 清除本地存储的认证信息
+        removeToken();
+        removeNickName();
+        removeUid();
+        state.nickName = "";
+        state.token = "";
+        state.unreadCount = 0;
+        
+        // 触发登出事件，通知其他组件（如SSE连接断开）
+        window.dispatchEvent(new Event('user-logout'));
+        
+        // 跳转到首页
+        router.push({ name: 'home' });
+      }
     };
 
     // 监听 localStorage 变化（注意：storage 事件只在不同窗口间触发，同窗口需手动更新）

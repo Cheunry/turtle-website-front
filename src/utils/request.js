@@ -1,7 +1,7 @@
 import axios from 'axios'
 import router from '@/router'
 import { ElMessage } from 'element-plus'
-import {getToken,removeToken,removeNickName, setToken} from '@/utils/auth'
+import {getToken,removeToken,removeNickName,removeUid, setToken, isTokenExpired} from '@/utils/auth'
 import { reportError } from '@/utils/errorReport'
 
 
@@ -13,7 +13,20 @@ axios.defaults.headers['X-Requested-With'] = 'XMLHttpRequest'
 axios.defaults.headers.post['Content-Type'] = 'application/json'
 
 axios.interceptors.request.use(config => {
-  config.headers['Authorization'] = getToken()
+  const token = getToken()
+  
+  // 如果Token存在但已过期，清除Token并跳转登录
+  if (token && isTokenExpired()) {
+    removeToken()
+    removeNickName()
+    removeUid()
+    window.dispatchEvent(new Event('user-logout'))
+    ElMessage.warning('登录已过期，请重新登录')
+    router.push({ path: '/login' })
+    return Promise.reject(new Error('Token已过期'))
+  }
+  
+  config.headers['Authorization'] = token
   return config
 }, error => {
     console.log(error)
@@ -31,6 +44,9 @@ axios.interceptors.response.use(res => {
       // 移除 token 
       removeToken();
       removeNickName();
+      removeUid();
+      // 触发登出事件，通知其他组件（如SSE连接断开）
+      window.dispatchEvent(new Event('user-logout'));
       router.push({ path: '/login' })
       return Promise.reject(res.data)
     }
@@ -60,6 +76,9 @@ axios.interceptors.response.use(res => {
       errorMessage = '登录已过期，请重新登录'
       removeToken()
       removeNickName()
+      removeUid()
+      // 触发登出事件，通知其他组件（如SSE连接断开）
+      window.dispatchEvent(new Event('user-logout'));
       router.push({ path: '/login' })
     } else if (status >= 500) {
       errorMessage = '服务器异常，请稍后重试'

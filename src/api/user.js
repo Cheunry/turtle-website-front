@@ -8,6 +8,10 @@ export function login(params) {
     return request.post('/front/user/login', params);
 }
 
+export function logout() {
+    return request.post('/front/user/logout');
+}
+
 export function submitFeedBack(params) {
     return request.post('/front/user/feedback', params);
 }
