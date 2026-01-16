@@ -17,63 +17,11 @@ turtle-website-front/
 
 ## 核心流程
 
-### 方式 1: 使用阿里云自动构建（最简单，无需配置密码）⭐ 推荐
+### 方式 1: 使用 GitHub Actions 构建（推荐，适合 Apple Silicon Mac）
 
-如果你已经在阿里云容器镜像服务中绑定了 GitHub 仓库，可以直接使用阿里云的自动构建功能，无需配置任何密码。
+GitHub Actions 在云端构建，网络稳定，支持跨平台构建。
 
-#### 步骤 1: 在阿里云控制台配置自动构建
-
-1. 登录阿里云容器镜像服务控制台
-2. 进入你的镜像仓库（如 `turtle-website/code` 或 `turtle-website/novel`）
-3. 点击左侧菜单的 **构建** 或 **触发器**
-4. 配置自动构建规则：
-   - **构建方式**: 选择 "代码变更自动构建" 或 "手动触发"
-   - **代码源**: 选择已绑定的 GitHub 仓库
-   - **Dockerfile 路径**: `docker/Dockerfile`
-   - **构建上下文**: `/`（项目根目录）
-   - **镜像版本**: 可以配置为使用 Git Tag、分支名或 commit SHA
-
-#### 步骤 2: 触发构建
-
-**方式 A: 推送代码自动构建**
-```bash
-git push origin main
-```
-
-**方式 B: 推送 Tag 触发构建**
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-**方式 C: 在阿里云控制台手动触发**
-- 进入镜像仓库的 **构建** 页面
-- 点击 **立即构建** 按钮
-
-构建完成后，镜像会自动推送到阿里云容器镜像服务，你可以在 **镜像版本** 页面查看。
-
-### 方式 2: 使用 GitHub Actions 构建（适合需要更多自定义）
-
-GitHub Actions 在云端构建，网络稳定，支持跨平台构建，可以自定义构建流程。
-
-#### 步骤 1: 配置 GitHub Secrets（两种方式选一种）
-
-**方式 A: 使用访问凭证（Access Token，推荐）**
-
-1. 登录阿里云容器镜像服务控制台
-2. 进入 **访问凭证** 页面
-3. 创建一个新的访问凭证（Access Token）
-4. 在 GitHub 仓库配置 Secrets：
-   - `ALIYUN_USERNAME`: `nick0256219954`
-   - `ALIYUN_ACCESS_TOKEN`: 刚才创建的访问凭证
-
-**方式 B: 使用密码**
-
-如果你有阿里云容器镜像服务的密码，可以配置：
-- `ALIYUN_USERNAME`: `nick0256219954`
-- `ALIYUN_PASSWORD`: 你的密码
-
-**详细步骤：**
+#### 步骤 1: 配置 GitHub Secrets
 
 **详细步骤：**
 
@@ -97,9 +45,9 @@ GitHub Actions 在云端构建，网络稳定，支持跨平台构建，可以�
 - 尝试直接访问：`https://github.com/你的用户名/仓库名/settings/secrets/actions`
 
 **配置完成后检查：**
-在 Secrets 页面应该能看到：
+在 Secrets 页面应该能看到两个 Secret：
 - ✅ `ALIYUN_USERNAME`
-- ✅ `ALIYUN_ACCESS_TOKEN` 或 `ALIYUN_PASSWORD`（二选一）
+- ✅ `ALIYUN_PASSWORD`
 
 **如果仓库还没有创建：**
 1. 在 GitHub 上创建一个新仓库
