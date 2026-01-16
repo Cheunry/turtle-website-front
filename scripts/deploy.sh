@@ -10,7 +10,7 @@ IMAGE_NAME="turtle-website"
 FULL_IMAGE_NAME="${DOCKER_USERNAME}/${IMAGE_NAME}"
 
 # 镜像版本标签（直接在这里指定版本号）
-IMAGE_TAG="v1.0.0"  # 修改为需要的版本号，如: v1.0.0, v1.0.1, latest 等
+IMAGE_TAG="v1.0.0"  # 修改成为需要的版本号，如: v1.0.0, v1.0.1, latest 等
 
 # 阿里云容器镜像服务配置
 ALIYUN_REGISTRY="crpi-zxhiymyhrekwsl0c.cn-beijing.personal.cr.aliyuncs.com"
