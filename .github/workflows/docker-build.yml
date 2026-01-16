@@ -32,28 +32,40 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Check secrets
+      - name: Check secrets configuration
         run: |
-          echo "检查 Secrets 配置..."
-          if [ -z "${{ secrets.ALIYUN_USERNAME }}" ]; then
-            echo "❌ 错误: ALIYUN_USERNAME secret 未配置或为空"
-            echo "请检查："
-            echo "1. 进入仓库 Settings → Secrets and variables → Actions"
-            echo "2. 确认存在名为 'ALIYUN_USERNAME' 的 Secret（注意大小写）"
-            echo "3. 确认 Secret 的值不为空"
+          echo "=== 检查 Secrets 配置 ==="
+          echo "检查 ALIYUN_USERNAME..."
+          USERNAME="${{ secrets.ALIYUN_USERNAME }}"
+          if [ -z "$USERNAME" ]; then
+            echo "❌ ALIYUN_USERNAME 为空或未配置"
+            echo ""
+            echo "请确认："
+            echo "1. 进入: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "2. 确认存在名为 'ALIYUN_USERNAME' 的 Secret（完全匹配，全大写）"
+            echo "3. 确认 Secret 的值是: nick0256219954"
             exit 1
+          else
+            echo "✅ ALIYUN_USERNAME 已配置（长度: ${#USERNAME} 字符）"
           fi
-          if [ -z "${{ secrets.ALIYUN_PASSWORD }}" ]; then
-            echo "❌ 错误: ALIYUN_PASSWORD secret 未配置或为空"
-            echo "请检查："
-            echo "1. 进入仓库 Settings → Secrets and variables → Actions"
-            echo "2. 确认存在名为 'ALIYUN_PASSWORD' 的 Secret（注意大小写）"
-            echo "3. 确认 Secret 的值不为空"
+          
+          echo ""
+          echo "检查 ALIYUN_PASSWORD..."
+          PASSWORD="${{ secrets.ALIYUN_PASSWORD }}"
+          if [ -z "$PASSWORD" ]; then
+            echo "❌ ALIYUN_PASSWORD 为空或未配置"
+            echo ""
+            echo "请确认："
+            echo "1. 进入: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            echo "2. 确认存在名为 'ALIYUN_PASSWORD' 的 Secret（完全匹配，全大写）"
+            echo "3. 确认 Secret 的值是阿里云容器镜像服务的密码（不是阿里云账号密码）"
             exit 1
+          else
+            echo "✅ ALIYUN_PASSWORD 已配置（长度: ${#PASSWORD} 字符）"
           fi
-          echo "✅ Secrets 配置正确"
-          echo "  - ALIYUN_USERNAME: 已配置（值已隐藏）"
-          echo "  - ALIYUN_PASSWORD: 已配置（值已隐藏）"
+          
+          echo ""
+          echo "✅ 所有 Secrets 配置正确，可以继续构建"
 
       - name: Login to Aliyun Container Registry
         uses: docker/login-action@v3
