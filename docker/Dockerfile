@@ -31,6 +31,9 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 # 复制 Nginx 配置文件
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
+# 确保文件权限正确（nginx:alpine 使用 root 用户运行，所以只需要设置权限）
+RUN chmod -R 755 /usr/share/nginx/html
+
 # 暴露端口
 EXPOSE 80
 
