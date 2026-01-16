@@ -109,3 +109,10 @@ export function aiCover(params) {
 export function aiCoverPrompt(params) {
     return request.post('/author/ai/cover-prompt', params, { timeout: 60000 });
 }
+
+/* ***************** 积分充值接口 ***************** */
+
+// 创建积分充值订单
+export function createRechargeOrder(params) {
+    return request.post('/payment/recharge', params);
+}

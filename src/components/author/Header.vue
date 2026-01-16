@@ -4,9 +4,17 @@
         <div class="box_center cf" style="text-align: center;height: 44px;line-height: 48px;color: #fff;font-size: 16px;">
             小说精品屋作家管理
             <div class="fr" style="font-size: 14px; position: absolute; right: 20px; top: 0; display: flex; align-items: center; gap: 20px;">
-                <div class="points-info" style="display: flex; gap: 15px; font-size: 13px;">
+                <div class="points-info" style="display: flex; gap: 15px; font-size: 13px; align-items: center;">
                     <span title="每日免费赠送，每日重置">免费积分: <span style="color: #67c23a; font-weight: bold;">{{ freePoints }}</span></span>
                     <span title="充值获得，永久有效">付费积分: <span style="color: #e6a23c; font-weight: bold;">{{ paidPoints }}</span></span>
+                    <el-button 
+                        type="primary" 
+                        size="small" 
+                        @click="goRecharge"
+                        style="margin-left: 10px;"
+                    >
+                        充值
+                    </el-button>
                 </div>
                 <router-link :to="{ name: 'authorMessage' }" class="message-link" style="color: #fff; text-decoration: none; position: relative;">
                     信箱
@@ -20,11 +28,13 @@
 
 <script>
 import { reactive, toRefs, onMounted } from "vue";
+import { useRouter } from "vue-router";
 import { getAuthorUnReadCount, getAuthorStatus } from "@/api/author";
 
 export default {
   name: "AuthorHeader",
   setup() {
+      const router = useRouter();
       const state = reactive({
           unreadCount: 0,
           freePoints: 0,
@@ -53,6 +63,10 @@ export default {
           }
       };
 
+      const goRecharge = () => {
+          router.push({ name: 'authorRecharge' });
+      };
+
       onMounted(() => {
           loadUnreadCount();
           loadAuthorPoints();
@@ -68,7 +82,8 @@ export default {
       });
 
       return {
-          ...toRefs(state)
+          ...toRefs(state),
+          goRecharge
       };
   }
 };

@@ -1,0 +1,73 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - 'v*'  # 当推送 v1.0.0 这样的 tag 时触发
+  workflow_dispatch:  # 允许手动触发
+    inputs:
+      image_tag:
+        description: '镜像版本标签 (例如: v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+env:
+  # 阿里云容器镜像服务配置
+  ALIYUN_REGISTRY: crpi-zxhiymyhrekwsl0c.cn-beijing.personal.cr.aliyuncs.com
+  ALIYUN_NAMESPACE: turtle-website
+  ALIYUN_REPO: code
+  ALIYUN_FULL_IMAGE: crpi-zxhiymyhrekwsl0c.cn-beijing.personal.cr.aliyuncs.com/turtle-website/code
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: network=host
+
+      - name: Login to Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_USERNAME }}
+          password: ${{ secrets.ALIYUN_PASSWORD || secrets.ALIYUN_ACCESS_TOKEN }}
+
+      - name: Determine image tag
+        id: image_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.image_tag }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "tag=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            # 使用 commit SHA 前 7 位作为标签
+            echo "tag=sha-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ env.ALIYUN_FULL_IMAGE }}:${{ steps.image_tag.outputs.tag }}
+            ${{ env.ALIYUN_FULL_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Output image info
+        run: |
+          echo "✅ 镜像构建并推送成功！"
+          echo "镜像地址: ${{ env.ALIYUN_FULL_IMAGE }}:${{ steps.image_tag.outputs.tag }}"
+          echo "最新标签: ${{ env.ALIYUN_FULL_IMAGE }}:latest"

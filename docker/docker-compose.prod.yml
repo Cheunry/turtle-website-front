@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  web:
+    image: crpi-zxhiymyhrekwsl0c.cn-beijing.personal.cr.aliyuncs.com/turtle-website/code:v1.0.0  # 修改为要部署的版本号
+    container_name: turtle-website-front
+    restart: unless-stopped
+    
+    ports:
+      - "8080:80"  # 主机端口:容器端口，如果80被占用，修改8080为其他端口
+    
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'      # CPU限制（1核）
+          memory: 512M     # 内存限制（512MB，可根据实际情况调整）
+        reservations:
+          cpus: '0.5'       # CPU保留（0.5核）
+          memory: 256M     # 内存保留（256MB）
+    
+    # 日志配置
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"    # 单个日志文件最大10MB
+        max-file: "3"      # 最多保留3个日志文件（总共约30MB）
+        compress: "true"   # 压缩旧日志文件
+    
+    # 健康检查（使用 curl，nginx:alpine 镜像通常包含）
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]  # 如果 curl 不可用，可以改为: ["CMD-SHELL", "wget --spider -q http://localhost/ || exit 1"]
+      interval: 30s        # 每30秒检查一次
+      timeout: 10s         # 超时时间10秒
+      retries: 3           # 失败3次后标记为不健康
+      start_period: 40s    # 启动后40秒内不检查
+    
+    # 安全配置
+    security_opt:
+      - no-new-privileges:true
+    
+    # 只读根文件系统（如果需要，取消注释）
+    # read_only: true
+    # tmpfs:
+    #   - /tmp
+    #   - /var/cache/nginx
+    #   - /var/run
+    #   - /var/log/nginx

@@ -124,6 +124,12 @@ const router = createRouter({
       name: 'authorMessage',
       component: () => import('@/views/author/Message'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/author/recharge',
+      name: 'authorRecharge',
+      component: () => import('@/views/author/Recharge'),
+      meta: { requiresAuth: true }
     }
   ]
 })
