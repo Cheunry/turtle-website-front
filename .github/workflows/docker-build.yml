@@ -32,6 +32,18 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Check secrets
+        run: |
+          if [ -z "${{ secrets.ALIYUN_USERNAME }}" ]; then
+            echo "❌ 错误: ALIYUN_USERNAME secret 未配置"
+            exit 1
+          fi
+          if [ -z "${{ secrets.ALIYUN_PASSWORD }}" ]; then
+            echo "❌ 错误: ALIYUN_PASSWORD secret 未配置"
+            exit 1
+          fi
+          echo "✅ Secrets 配置正确"
+
       - name: Login to Aliyun Container Registry
         uses: docker/login-action@v3
         with:
