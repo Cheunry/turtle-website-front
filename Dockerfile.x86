@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # 第一阶段：构建阶段 (使用构建平台，即本地 ARM，速度快)
 FROM --platform=$BUILDPLATFORM node:16-alpine AS builder
 

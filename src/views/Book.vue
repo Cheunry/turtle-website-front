@@ -356,9 +356,11 @@ import {
   getLastChapterAbout,
   listRecBooks,
   listCommentByPage,
+  getBookContent,
 } from "@/api/book";
 import { comment, deleteComment, updateComment, addToBookshelf } from "@/api/user";
 import { getUid } from "@/utils/auth";
+import { getChapterFromCache, saveChapterToCache } from "@/utils/chapterCache";
 import Header from "@/components/common/Header";
 import Footer from "@/components/common/Footer";
 import author_head from "@/assets/images/author_head.png";
@@ -440,6 +442,37 @@ export default {
         .getElementById("bookCover")
         .setAttribute("onerror", "this.src='default.gif';this.onerror=null");
       addBookVisit(bookId);
+      // 预加载前五章（WiFi 下）
+      preloadFirstFiveChapters(bookId);
+    };
+
+    /**
+     * 预加载书籍前五章
+     * 用户打开详情页时预加载，进入阅读页时可秒开
+     *
+     * @param {string|number} bookId - 书籍ID
+     */
+    const preloadFirstFiveChapters = (bookId) => {
+      // 异步预加载前五章，不阻塞主流程
+      for (let i = 1; i <= 5; i++) {
+        setTimeout(() => {
+          // 跳过已缓存的章节
+          if (getChapterFromCache(bookId, i)) {
+            return;
+          }
+
+          getBookContent(bookId, i)
+            .then(({ data }) => {
+              if (data && data.bookContent) {
+                saveChapterToCache(bookId, i, data);
+              }
+            })
+            .catch(err => {
+              // 静默处理预加载失败
+              console.debug('预加载第', i, '章失败:', err);
+            });
+        }, 0);
+      }
     };
 
     const loadRecBooks = async (bookId) => {

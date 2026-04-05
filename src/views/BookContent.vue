@@ -360,6 +360,7 @@ import { useRouter, useRoute } from "vue-router";
 import { getBookContent, getPreChapterId, getNextChapterId, listChapters } from "@/api/book";
 import { getUid } from "@/utils/auth";
 import { updateBookshelfProcess, addToBookshelf } from "@/api/user";
+import { getChapterFromCache, saveChapterToCache } from "@/utils/chapterCache";
 import { ElMessage } from "element-plus";
 import Top from "@/components/common/Top";
 import Footer from "@/components/common/Footer";
@@ -750,8 +751,41 @@ export default {
       }
     };
 
+    /**
+     * 预加载后续章节
+     * 预加载当前章节之后连续5章
+     * 使用异步方式预加载，不阻塞当前阅读
+     *
+     * @param {string|number} bookId - 书籍ID
+     * @param {number} currentChapterNum - 当前章节号
+     */
+    const preloadNextChapters = (bookId, currentChapterNum) => {
+      // 预加载当前章节之后连续5章
+      for (let i = 1; i <= 5; i++) {
+        const chapterNum = currentChapterNum + i;
+        if (chapterNum <= 0) continue;
 
+        // 使用 setTimeout 异步执行，不阻塞主线程
+        setTimeout(() => {
+          // 跳过已缓存的章节
+          if (getChapterFromCache(bookId, chapterNum)) {
+            return;
+          }
 
+          // 从服务器获取章节内容
+          getBookContent(bookId, chapterNum)
+            .then(({ data }) => {
+              if (data && data.bookContent) {
+                saveChapterToCache(bookId, chapterNum, data);
+              }
+            })
+            .catch(err => {
+              // 预加载失败不影响主流程，静默处理
+              console.debug('预加载章节失败:', chapterNum, err);
+            });
+        }, 0);
+      }
+    };
 
 
     const init = async (bookId, chapterNum) => {
@@ -767,20 +801,43 @@ export default {
           router.push({ path: `/chapter_list/${bookId}` });
           return;
         }
-        
+
+        // 1. 先尝试从本地缓存读取
+        const cachedChapter = getChapterFromCache(bookId, Number(chapterNum));
+        if (cachedChapter) {
+          state.data = {
+            bookContent: cachedChapter.content,
+            chapterInfo: cachedChapter.chapterInfo,
+            bookInfo: cachedChapter.chapterInfo ? {
+              bookName: '',
+              authorName: '',
+              categoryName: ''
+            } : null
+          };
+        }
+
+        // 2. 从服务器获取最新内容（即使有缓存也获取，确保数据最新）
         const { data } = await getBookContent(bookId, chapterNum);
         state.data = data;
-        
+
+        // 3. 将获取的数据存入本地缓存
+        if (data && data.bookContent) {
+          saveChapterToCache(bookId, Number(chapterNum), data);
+
+          // 4. 预加载当前章节之后连续5章
+          preloadNextChapters(bookId, Number(chapterNum));
+        }
+
         // 如果章节内容为空，显示提示
         if (!data || !data.bookContent) {
           ElMessage.warning('该章节暂无内容，可能正在审核中或已下架');
         }
-        
+
         // 如果已登录，更新阅读进度
         if (getUid() && data && data.chapterInfo) {
           updateBookshelfProcess(bookId, chapterNum);
         }
-        
+
         // 等待DOM更新和transition动画开始后滚动到顶部
         await nextTick();
         // 稍微延迟以确保transition动画已经开始

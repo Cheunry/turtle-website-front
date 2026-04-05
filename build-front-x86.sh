@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 设置目标架构为 x86_64 (服务器通用架构)
+# 设置目标架构为 x86_64 (服务器通用架
 PLATFORM="linux/amd64"
 VERSION="latest"
 OUTPUT_FILE="turtle-front-images.tar"

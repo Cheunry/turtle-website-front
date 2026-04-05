@@ -84,24 +84,27 @@ class SseManager {
             } else if (line.startsWith('data:')) {
               eventData = line.substring(5).trim();
             } else if (line === '') {
-              // 空行表示一个事件结束
-              if (eventData) {
-                try {
-                  const data = JSON.parse(eventData);
-                  if (eventType === 'connected') {
-                    console.log('用户 SSE 连接已建立');
-                    this.currentDelay = this.reconnectDelay; // 重置重连延迟
-                  } else if (eventType !== 'heartbeat') {
-                    // 忽略心跳消息
-                    onMessage && onMessage(eventType, data);
+                  // 空行表示一个事件结束
+                  if (eventData) {
+                    if (eventType === 'heartbeat') {
+                      // 心跳数据是纯文本 "ping"，不是 JSON，直接忽略
+                    } else {
+                      try {
+                        const data = JSON.parse(eventData);
+                        if (eventType === 'connected') {
+                          console.log('用户 SSE 连接已建立');
+                          this.currentDelay = this.reconnectDelay; // 重置重连延迟
+                        } else {
+                          onMessage && onMessage(eventType, data);
+                        }
+                      } catch (e) {
+                        console.error('解析 SSE 消息失败:', e, eventData);
+                      }
+                    }
                   }
-                } catch (e) {
-                  console.error('解析 SSE 消息失败:', e, eventData);
+                  eventType = 'message';
+                  eventData = '';
                 }
-              }
-              eventType = 'message';
-              eventData = '';
-            }
           }
 
           // 继续读取
@@ -197,24 +200,27 @@ class SseManager {
             } else if (line.startsWith('data:')) {
               eventData = line.substring(5).trim();
             } else if (line === '') {
-              // 空行表示一个事件结束
-              if (eventData) {
-                try {
-                  const data = JSON.parse(eventData);
-                  if (eventType === 'connected') {
-                    console.log('作者 SSE 连接已建立');
-                    this.currentDelay = this.reconnectDelay; // 重置重连延迟
-                  } else if (eventType !== 'heartbeat') {
-                    // 忽略心跳消息
-                    onMessage && onMessage(eventType, data);
+                  // 空行表示一个事件结束
+                  if (eventData) {
+                    if (eventType === 'heartbeat') {
+                      // 心跳数据是纯文本 "ping"，不是 JSON，直接忽略
+                    } else {
+                      try {
+                        const data = JSON.parse(eventData);
+                        if (eventType === 'connected') {
+                          console.log('作者 SSE 连接已建立');
+                          this.currentDelay = this.reconnectDelay; // 重置重连延迟
+                        } else {
+                          onMessage && onMessage(eventType, data);
+                        }
+                      } catch (e) {
+                        console.error('解析 SSE 消息失败:', e, eventData);
+                      }
+                    }
                   }
-                } catch (e) {
-                  console.error('解析 SSE 消息失败:', e, eventData);
+                  eventType = 'message';
+                  eventData = '';
                 }
-              }
-              eventType = 'message';
-              eventData = '';
-            }
           }
 
           // 继续读取
