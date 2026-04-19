@@ -13,7 +13,7 @@
                   item.bookName
                 }}</a>
               </div>
-              <div class="book_intro">
+              <div class="book_intro" v-if="index === 0">
                 <div class="cover">
                   <a href="javascript:void(0)" @click="bookDetail(item.id)"
                     ><img
@@ -22,7 +22,7 @@
                       onerror="this.src='default.gif';this.onerror=null"
                   /></a>
                 </div>
-                <a class="txt" href="javascript:void(0)" @click="bookDetail(item.id)" v-html="item.bookDesc"></a>
+                <a class="txt" href="javascript:void(0)" @click="bookDetail(item.id)">{{ item.bookDesc }}</a>
               </div>
              
               </li>
@@ -39,7 +39,7 @@
 <script>
 import { reactive, toRefs, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { listVisitRankBooks } from "@/api/book";
+import { listVisitRankBooksHome } from "@/api/book";
 import { getImageUrl } from "@/utils/index";
 export default {
   name: "BookVisitRank",
@@ -52,17 +52,8 @@ export default {
     });
 
     onMounted(async () => {
-      const { data } = await listVisitRankBooks();
-
-      await data.forEach((book) => {
-        
-          if(state.books.length < 10){
-            state.books[state.books.length] = book;
-          }
-          
-        })
-
-      
+      const { data } = await listVisitRankBooksHome();
+      state.books = Array.isArray(data) ? data : [];
     });
 
     const bookDetail = (bookId) => {

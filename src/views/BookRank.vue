@@ -29,7 +29,7 @@
                   <tr v-for="(item, index) in books" :key="index">
                     <td class="rank">
                       <i :class="'num' + (Number(`${index}`) + 1)">{{
-                        index + 1
+                        item.rank != null ? item.rank : index + 1
                       }}</i>
                     </td>
                     <td class="style">
@@ -93,7 +93,7 @@
 
 <script>
 import "@/assets/styles/book.css";
-import { reactive, toRefs, onMounted, ref } from "vue";
+import { reactive, toRefs, onMounted } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import {
   listVisitRankBooks,
@@ -123,21 +123,21 @@ export default {
 
     const visitRank = async () => {
       const { data } = await listVisitRankBooks();
-      state.books = data;
+      state.books = Array.isArray(data) ? data : [];
       state.rankName = "点击榜";
       state.rankType = 1;
     };
 
     const newestRank = async () => {
       const { data } = await listNewestRankBooks();
-      state.books = data;
+      state.books = Array.isArray(data) ? data : [];
       state.rankName = "新书榜";
       state.rankType = 2;
     };
 
     const updateRank = async () => {
       const { data } = await listUpdateRankBooks();
-      state.books = data;
+      state.books = Array.isArray(data) ? data : [];
       state.rankName = "更新榜";
       state.rankType = 3;
     };
@@ -155,15 +155,19 @@ export default {
     };
   },
   computed: {
-    wordCountFormat(wordCount) {
+    wordCountFormat() {
       return (wordCount) => {
-        if (wordCount.length > 5) {
-          return parseInt(wordCount / 10000) + "万";
+        const n = Number(wordCount);
+        if (Number.isNaN(n)) {
+          return wordCount;
         }
-        if (wordCount.length > 4) {
-          return parseInt(wordCount / 1000) + "千";
+        if (n >= 100000) {
+          return Math.floor(n / 10000) + "万";
         }
-        return wordCount;
+        if (n >= 10000) {
+          return Math.floor(n / 1000) + "千";
+        }
+        return n;
       };
     },
   },

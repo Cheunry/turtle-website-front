@@ -50,6 +50,12 @@ axios.interceptors.response.use(res => {
       router.push({ path: '/login' })
       return Promise.reject(res.data)
     }
+
+    // AI 生图服务端排队/并发已满（novel-ai-service 线程池饱和）
+    if (res.data.code === 'C4002') {
+      ElMessage.warning(res.data.message || '当前生图任务较多，请稍后再试')
+      return Promise.reject(res.data)
+    }
     
     // 其他业务错误：由拦截器统一显示错误消息，业务代码不再重复显示
     if (res.data.message) {

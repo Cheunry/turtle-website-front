@@ -50,16 +50,39 @@ export function getNextChapterId(bookId, chapterNum) {
 }
 
 
+/** 排行榜页：点击榜表格 */
 export function listVisitRankBooks() {
     return request.get('/front/book/visit_rank');
 }
 
+/** 首页侧栏：点击榜（仅第一名含封面、简介预览） */
+export function listVisitRankBooksHome() {
+    return request.get('/front/book/visit_rank/home');
+}
+
+/** 排行榜页：新书榜表格 */
 export function listNewestRankBooks() {
     return request.get('/front/book/newest_rank');
 }
 
+/** 首页侧栏：新书榜 */
+export function listNewestRankBooksHome() {
+    return request.get('/front/book/newest_rank/home');
+}
+
+/** 排行榜页：更新榜表格 */
 export function listUpdateRankBooks() {
     return request.get('/front/book/update_rank');
+}
+
+/** 首页侧栏：更新榜 */
+export function listUpdateRankBooksHome() {
+    return request.get('/front/book/update_rank/home');
+}
+
+/** 首页「最新更新」表格 */
+export function listHomeLatestUpdates() {
+    return request.get('/front/book/home/latest_updates');
 }
 
 export function listCommentByPage(params) {

@@ -9,7 +9,11 @@
       <div class="so_tag">
         <ul class="list">
           <!-- 移除了作品频道过滤 -->
-          <li id="idGirl" class="so_class">
+          <li
+            id="idGirl"
+            class="so_class"
+            :class="{ 'so_class--collapsible': bookCategorys.length > categoryCollapseThreshold }"
+          >
             <span class="tit">作品分类：</span>
 
             <span class="so_boy" id="boyCategoryList" :class="{ 'expand': isCategoryExpanded }">
@@ -28,7 +32,12 @@
                 >{{ item.name }}</a
               >
             </span>
-            <a href="javascript:void(0)" class="expand-btn" @click="toggleCategoryExpand" v-if="bookCategorys.length > 7">
+            <a
+              href="javascript:void(0)"
+              class="expand-btn"
+              @click="toggleCategoryExpand"
+              v-if="bookCategorys.length > categoryCollapseThreshold"
+            >
               {{ isCategoryExpanded ? '收起' : '更多' }}
               <i :class="isCategoryExpanded ? 'el-icon-arrow-up' : 'el-icon-arrow-down'"></i>
             </a>
@@ -237,6 +246,9 @@ import { addDay, dateFormat } from "@/utils";
 import Top from "@/components/common/Top";
 import Navbar from "@/components/common/Navbar";
 import Footer from "@/components/common/Footer";
+
+const CATEGORY_COLLAPSE_THRESHOLD = 20;
+
 export default {
   name: "bookclass",
   components: {
@@ -385,7 +397,8 @@ export default {
       changeUpdateTime,
       changeSort,
       changeSearchMode,
-      toggleCategoryExpand
+      toggleCategoryExpand,
+      categoryCollapseThreshold: CATEGORY_COLLAPSE_THRESHOLD,
     };
   },
   computed: {
@@ -400,12 +413,12 @@ export default {
         return wordCount;
       };
     },
-    // 根据展开状态决定显示的分类数量
     displayedCategories() {
-      if (this.isCategoryExpanded || this.bookCategorys.length <= 7) {
+      const n = this.categoryCollapseThreshold;
+      if (this.isCategoryExpanded || this.bookCategorys.length <= n) {
         return this.bookCategorys;
       }
-      return this.bookCategorys.slice(0, 7);
+      return this.bookCategorys.slice(0, n);
     },
   },
 };
@@ -424,7 +437,10 @@ export default {
 
 .so_class {
   position: relative;
-  padding-right: 60px; /* 为展开按钮预留空间 */
+}
+
+.so_class--collapsible {
+  padding-right: 60px;
 }
 
 .so_boy {

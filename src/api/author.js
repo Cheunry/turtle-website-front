@@ -100,9 +100,14 @@ export function aiPolish(params) {
     return request.post('/author/ai/polish', params, { timeout: 180000 });
 }
 
-// AI 封面生成 (含扣分逻辑)
+// AI 封面生成 (含扣分逻辑；异步任务，立即返回 jobId)
 export function aiCover(params) {
-    return request.post('/author/ai/cover', params, { timeout: 180000 });
+    return request.post('/author/ai/cover', params, { timeout: 60000 });
+}
+
+// 查询异步封面生图任务状态
+export function getCoverJob(jobId) {
+    return request.get(`/author/ai/cover/jobs/${encodeURIComponent(jobId)}`, { timeout: 30000 });
 }
 
 // AI 封面提示词生成 (不扣分，仅生成提示词)

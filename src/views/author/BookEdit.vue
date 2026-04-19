@@ -190,7 +190,7 @@ import "@/assets/styles/book.css";
 import { reactive, toRefs, onMounted, watch } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage, ElMessageBox } from "element-plus";
-import { updateBook, aiCover, aiCoverPrompt, getAuthorStatus, getBookById } from "@/api/author";
+import { updateBook, aiCover, aiCoverPrompt, getAuthorStatus, getBookById, getCoverJob } from "@/api/author";
 // uploadImageFromUrl 已不再需要，AI 服务直接返回 COS URL
 import { listCategorys } from "@/api/book";
 import { getImageUrl } from "@/utils/index";
@@ -363,6 +363,30 @@ export default {
       return false;
     };
 
+    /** 轮询异步封面任务，直到成功或失败（约 2s 一次，最多约 4 分钟） */
+    const pollCoverJobUntilDone = async (jobId) => {
+      const maxAttempts = 120;
+      const intervalMs = 2000;
+      for (let i = 0; i < maxAttempts; i++) {
+        const res = await getCoverJob(jobId);
+        if (!res || res.code !== "00000") {
+          throw new Error(res?.message || "查询任务状态失败");
+        }
+        const st = res.data;
+        if (!st) {
+          throw new Error("任务状态为空");
+        }
+        if (st.status === "SUCCEEDED" && st.imageUrl) {
+          return st.imageUrl;
+        }
+        if (st.status === "FAILED") {
+          throw new Error(st.errorMessage || st.message || "封面生成失败");
+        }
+        await new Promise((r) => setTimeout(r, intervalMs));
+      }
+      throw new Error("封面生成超时，请稍后到作品列表刷新重试");
+    };
+
     const generateCover = async () => {
       // 如果正在生成提示词，不允许生成封面
       if (state.generatingPrompt) {
@@ -452,47 +476,61 @@ export default {
       
       try {
         state.generatingCover = true;
-        ElMessage.info("AI正在绘图中，请耐心等待约 15-30 秒，期间请勿操作...");
-        
-        // 使用 aiCover API 生成封面（已集成积分扣除）
+        ElMessage.info("正在提交 AI 封面任务…");
+
+        // 使用 aiCover API：先扣分，异步生图，立即返回 jobId
         const params = {
           relatedId: state.book.id,
           relatedDesc: state.book.bookName,
           bookName: state.book.bookName,
           categoryName: state.book.categoryName || '',
           bookDesc: state.book.bookDesc,
-          prompt: state.generatedPrompt, // 使用生成的提示词
+          // 与 AuthorPointsConsumeReqDto.coverPrompt 对齐；先「生成提示词」再一键生图时可跳过后端第二次 LLM
+          coverPrompt: state.generatedPrompt,
           consumePoints: 0 // 后端会自动计算并扣除
         };
-        
+
         const response = await aiCover(params);
-        
-        // 触发积分更新事件
+
+        // 触发积分更新事件（已扣分）
         window.dispatchEvent(new Event('author-points-changed'));
-        
+
         if (response && response.data) {
-          // 如果返回的是图片URL字符串
+          // 兼容：直接返回图片 URL 字符串（旧版同步接口）
           if (typeof response.data === 'string') {
             state.previewCoverUrl = response.data;
+            ElMessage.success("封面生成成功，请查看预览");
+          } else if (response.data.jobId) {
+            ElMessage.info("任务已提交，正在生成封面，请稍候…");
+            const imageUrl = await pollCoverJobUntilDone(response.data.jobId);
+            state.previewCoverUrl = imageUrl;
+            ElMessage.success("封面生成成功，请查看预览");
           } else if (response.data.imageUrl) {
             state.previewCoverUrl = response.data.imageUrl;
+            ElMessage.success("封面生成成功，请查看预览");
           } else if (response.data.url) {
             state.previewCoverUrl = response.data.url;
+            ElMessage.success("封面生成成功，请查看预览");
           } else {
-            state.previewCoverUrl = response.data;
+            ElMessage.error(response?.message || "生成封面失败");
           }
-          ElMessage.success("封面生成成功，请查看预览");
         } else {
           ElMessage.error(response?.message || "生成封面失败");
         }
       } catch (error) {
-        // 判断是否是超时错误
-        if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
-            ElMessage.warning("生成时间较长，请稍后刷新页面或重试");
+        // 网络/超时：axios 错误对象
+        const isTimeout =
+          error.code === 'ECONNABORTED' ||
+          (typeof error.message === 'string' && error.message.includes('timeout'));
+        if (isTimeout) {
+          ElMessage.warning('生成时间较长，请稍后刷新页面或重试');
+        } else if (error.code) {
+          // 业务错误（含 C4002 生图排队）：request 拦截器已提示，避免重复 Toast
+          console.error('生成封面失败:', error);
         } else {
-            ElMessage.error("生成封面失败，请稍后重试");
+          ElMessage.error('生成封面失败，请稍后重试');
+          console.error('生成封面失败:', error);
         }
-        console.error("生成封面失败:", error);
       } finally {
         state.generatingCover = false;
       }
