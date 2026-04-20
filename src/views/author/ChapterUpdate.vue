@@ -238,6 +238,8 @@
                         <div v-else class="polish-result">
                           <div class="polish-header">
                             <h4>AI润色建议</h4>
+                            <p v-if="!polishExplanation && generating" class="polish-stream-hint">正在流式生成润色正文…</p>
+                            <p v-else-if="!polishExplanation && polishedContent" class="polish-stream-hint">以下为流式生成的润色结果（无单独说明）。</p>
                             <div class="polish-actions">
                               <el-button type="success" size="small" @click="applyPolish">采纳</el-button>
                               <el-button type="primary" size="small" @click="polishStep = 'config'">重试</el-button>
@@ -336,7 +338,7 @@ import "@/assets/styles/book.css";
 import { reactive, toRefs, onMounted, ref, computed } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { ElMessage } from "element-plus";
-import { updateChapter, getChapter, aiAudit, aiPolish, getAuthorStatus } from "@/api/author";
+import { updateChapter, getChapter, streamAiPolish, getAuthorStatus } from "@/api/author";
 import AuthorHeader from "@/components/author/Header.vue";
 import { Loading } from "@element-plus/icons-vue";
 import { renderMarkdown } from "@/utils/markdown";
@@ -446,26 +448,6 @@ export default {
           }
         }
       }
-    };
-
-    const typewriterEffect = (text) => {
-      return new Promise((resolve) => {
-        let index = 0;
-        const typing = setInterval(() => {
-          if (index < text.length) {
-            state.chapter.content += text.charAt(index);
-            index++;
-            // 自动滚动到底部
-            const currentEditor = state.isFullscreen ? fullscreenEditor.value : editor.value;
-            if (currentEditor) {
-              currentEditor.scrollTop = currentEditor.scrollHeight;
-            }
-          } else {
-            clearInterval(typing);
-            resolve();
-          }
-        }, 20);
-      });
     };
 
     const handleAI = async (action) => {    
@@ -603,30 +585,38 @@ export default {
         };
 
         if (action === 'polish') {
-          // 添加润色相关参数
-          params.style = state.polishParams.style; 
+          params.style = state.polishParams.style;
           params.requirement = state.polishParams.requirement;
-          
-          // 调用 AI 润色接口（已集成积分扣除）
-          const response = await aiPolish(params);
-          // 触发积分更新事件，更新页面上的积分显示
-          window.dispatchEvent(new Event('author-points-changed'));
 
-          if (response && response.data) {
-              state.polishedContent = response.data.polishedText || "";
-              state.polishExplanation = response.data.explanation || "";
-              state.polishStep = 'result';
-          } else {
-              throw new Error("响应数据为空");
-          }
+          state.polishStep = 'result';
+          state.polishedContent = '';
+          state.polishExplanation = '';
+
+          await streamAiPolish(params, {
+            onDelta: (chunk) => {
+              state.polishedContent += chunk;
+            }
+          });
+
+          window.dispatchEvent(new Event('author-points-changed'));
+          ElMessage.success('润色完成');
         }
         
       } catch (error) {
-        // 如果是积分不足，已经在 axios 拦截器处理了，或者在这里捕获
+        if (action === 'polish') {
+          state.polishStep = 'config';
+          state.polishedContent = '';
+          state.polishExplanation = '';
+        }
         if (error.msg && error.msg.includes("余额不足")) {
-             // 拦截器通常会显示错误，这里可以不做额外处理
+          /* axios 拦截器已提示 */
         } else {
-             ElMessage.error("AI服务调用失败：" + (error.msg || error.message || error));
+          const msg = error.msg || error.message || String(error);
+          if (error.code === 'C4002' || error.code === 'C4003') {
+            ElMessage.warning(msg);
+          } else if (msg && !msg.includes('未登录')) {
+            ElMessage.error('AI服务调用失败：' + msg);
+          }
         }
       } finally {
         state.generating = false;
@@ -1599,6 +1589,13 @@ a.redBtn:hover {
   justify-content: space-between;
   align-items: center;
   background: #fff;
+}
+
+.polish-stream-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: #909399;
+  font-weight: normal;
 }
 
 .polish-header h4 {

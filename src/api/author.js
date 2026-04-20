@@ -1,4 +1,5 @@
 import request from '../utils/request'
+import { postJsonSse } from '../utils/postJsonSse'
 
 export function getAuthorStatus() {
     return request.get('/author/status');
@@ -95,9 +96,30 @@ export function aiAudit(params) {
     return request.post('/author/ai/audit', params, { timeout: 180000 });
 }
 
-// AI 润色 (含扣分逻辑)
+// AI 润色 (含扣分逻辑，同步返回 JSON)
 export function aiPolish(params) {
     return request.post('/author/ai/polish', params, { timeout: 180000 });
+}
+
+/**
+ * AI 润色 SSE 流式（先扣分；事件 delta=正文片段、done=结束、error=业务错误 JSON）
+ * @param {object} params AuthorPointsConsumeReqDto
+ * @param {{ onDelta?: (chunk: string) => void, onDone?: () => void, signal?: AbortSignal }} callbacks
+ */
+export function streamAiPolish(params, callbacks = {}) {
+    const { onDelta, onDone, signal } = callbacks
+    return postJsonSse(
+        '/author/ai/polish/stream',
+        params,
+        (eventName, raw) => {
+            if (eventName === 'delta') {
+                onDelta && onDelta(raw)
+            } else if (eventName === 'done') {
+                onDone && onDone()
+            }
+        },
+        { signal }
+    )
 }
 
 // AI 封面生成 (含扣分逻辑；异步任务，立即返回 jobId)
