@@ -346,6 +346,7 @@ import { ElMessage } from "element-plus";
 import { publishChapter, aiAudit, streamAiPolish, getAuthorStatus } from "@/api/author";
 import AuthorHeader from "@/components/author/Header.vue";
 import { renderMarkdown } from "@/utils/markdown";
+import { createAuthorPointsRequestId, hashRequestPart } from "@/utils/requestId";
 
 export default {
   name: "authorChapterAdd",
@@ -599,7 +600,14 @@ export default {
             // content: 文本内容，用于AI审核/润色
             content: state.selectedText || state.chapter.content,
             // consumePoints: 消费点数，后端会自动覆盖，这里设置为0即可
-            consumePoints: 0
+            consumePoints: 0,
+            requestId: action === 'audit'
+              ? createAuthorPointsRequestId('AUDIT_CHAPTER', [
+                  state.bookId,
+                  state.chapter.chapterNum || state.chapter.chapterName,
+                  hashRequestPart(`${state.chapter.chapterName || ''}:${state.chapter.chapterNum || ''}:${state.chapter.content || ''}`)
+                ], false)
+              : createAuthorPointsRequestId('POLISH', [state.bookId])
         };
 
         if (action === 'audit') {

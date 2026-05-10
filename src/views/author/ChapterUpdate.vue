@@ -342,6 +342,7 @@ import { updateChapter, getChapter, streamAiPolish, getAuthorStatus } from "@/ap
 import AuthorHeader from "@/components/author/Header.vue";
 import { Loading } from "@element-plus/icons-vue";
 import { renderMarkdown } from "@/utils/markdown";
+import { createAuthorPointsRequestId } from "@/utils/requestId";
 
 export default {
   name: "authorChapterUpdate",
@@ -581,7 +582,9 @@ export default {
             // content: 文本内容，用于AI审核/润色
             content: state.selectedText || state.chapter.content,
             // consumePoints: 消费点数，后端会自动覆盖，这里设置为0即可
-            consumePoints: 0
+            consumePoints: 0,
+            version: Number(state.chapter.version || 0),
+            requestId: createAuthorPointsRequestId('POLISH', [state.bookId, state.chapter.id || state.chapter.chapterNum])
         };
 
         if (action === 'polish') {

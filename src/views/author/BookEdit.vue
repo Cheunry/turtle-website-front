@@ -194,6 +194,7 @@ import { updateBook, aiCover, aiCoverPrompt, getAuthorStatus, getBookById, getCo
 // uploadImageFromUrl 已不再需要，AI 服务直接返回 COS URL
 import { listCategorys } from "@/api/book";
 import { getImageUrl } from "@/utils/index";
+import { createAuthorPointsRequestId } from "@/utils/requestId";
 import AuthorHeader from "@/components/author/Header.vue";
 import picUpload from "@/assets/images/pic_upload.png";
 import ImageCropper from "@/components/common/ImageCropper";
@@ -487,7 +488,8 @@ export default {
           bookDesc: state.book.bookDesc,
           // 与 AuthorPointsConsumeReqDto.coverPrompt 对齐；先「生成提示词」再一键生图时可跳过后端第二次 LLM
           coverPrompt: state.generatedPrompt,
-          consumePoints: 0 // 后端会自动计算并扣除
+          consumePoints: 0, // 后端会自动计算并扣除
+          requestId: createAuthorPointsRequestId('COVER', [state.book.id])
         };
 
         const response = await aiCover(params);
